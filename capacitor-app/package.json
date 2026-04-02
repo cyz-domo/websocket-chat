@@ -1,0 +1,28 @@
+{
+  "name": "animal-chat-capacitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor shell for the Django websocket chat project.",
+  "scripts": {
+    "copy": "npx cap copy",
+    "sync": "npx cap sync",
+    "sync:prod": "CAP_SERVER_URL=https://chat.6143443.xyz/chat/login/ npx cap sync",
+    "sync:local-android": "CAP_SERVER_URL=http://10.0.2.2:8000/chat/login/ npx cap sync android",
+    "sync:local-ios": "CAP_SERVER_URL=http://127.0.0.1:8000/chat/login/ npx cap sync ios",
+    "add:android": "npx cap add android",
+    "add:ios": "npx cap add ios",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios",
+    "doctor": "npx cap doctor"
+  },
+  "dependencies": {
+    "@capacitor/android": "latest",
+    "@capacitor/core": "latest",
+    "@capacitor/device": "latest",
+    "@capacitor/ios": "latest",
+    "@capacitor/push-notifications": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "latest"
+  }
+}

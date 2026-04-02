@@ -54,6 +54,7 @@ from .models import (
     FriendRequest,
     Friendship,
     Message,
+    MobileDevice,
     Room,
     RoomInvitation,
     RoomJoinRequest,
@@ -216,6 +217,15 @@ def get_direct_emoji_send_url(user, emoji_id):
 def get_direct_emoji_favorite_url(user, message_id):
     profile = get_or_create_chat_profile(user)
     return reverse('favorite_direct_image_emoji', kwargs={'public_id': profile.public_id, 'message_id': message_id})
+
+
+def get_json_request_data(request):
+    if not request.body:
+        return {}
+    try:
+        return json.loads(request.body.decode('utf-8'))
+    except (TypeError, ValueError, UnicodeDecodeError):
+        return None
 
 
 def get_remove_friend_url(user):
@@ -1820,6 +1830,64 @@ def mark_direct_read(request, public_id):
     state.deleted_at = None
     state.last_read_at = timezone.now()
     state.save(update_fields=['deleted_at', 'last_read_at'])
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def register_mobile_device(request):
+    payload = get_json_request_data(request)
+    if payload is None:
+        return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
+
+    token = (payload.get('token') or '').strip()
+    platform = (payload.get('platform') or MobileDevice.PLATFORM_ANDROID).strip().lower()
+    device_id = (payload.get('device_id') or '').strip()
+    device_name = (payload.get('device_name') or '').strip()
+    app_version = (payload.get('app_version') or '').strip()
+
+    if not token:
+        return JsonResponse({'ok': False, 'error': 'missing_token'}, status=400)
+    if platform not in {choice[0] for choice in MobileDevice.PLATFORM_CHOICES}:
+        return JsonResponse({'ok': False, 'error': 'invalid_platform'}, status=400)
+
+    device, _ = MobileDevice.objects.update_or_create(
+        token=token,
+        defaults={
+            'user': request.user,
+            'platform': platform,
+            'device_id': device_id[:128],
+            'device_name': device_name[:120],
+            'app_version': app_version[:40],
+            'notifications_enabled': True,
+        },
+    )
+    return JsonResponse({
+        'ok': True,
+        'device': {
+            'id': device.id,
+            'platform': device.platform,
+            'device_name': device.device_name,
+            'app_version': device.app_version,
+            'notifications_enabled': device.notifications_enabled,
+        },
+    })
+
+
+@login_required
+@require_POST
+def unregister_mobile_device(request):
+    payload = get_json_request_data(request)
+    if payload is None:
+        return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
+
+    token = (payload.get('token') or '').strip()
+    if not token:
+        return JsonResponse({'ok': False, 'error': 'missing_token'}, status=400)
+
+    updated = MobileDevice.objects.filter(user=request.user, token=token).update(notifications_enabled=False)
+    if not updated:
+        return JsonResponse({'ok': False, 'error': 'device_not_found'}, status=404)
     return JsonResponse({'ok': True})
 
 

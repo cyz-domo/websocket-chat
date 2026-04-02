@@ -7,6 +7,8 @@
 - Django
 - Channels
 - Daphne
+- Redis（生产建议）
+- Firebase Cloud Messaging / FCM（移动端推送）
 - SQLite / PostgreSQL
 
 ## 本地启动
@@ -211,6 +213,11 @@ MIGRATE_ON_START=1
 GEOCODE_PROVIDER=auto
 GEOCODE_TIMEOUT=8
 AMAP_WEB_API_KEY=你的高德Web服务Key
+REDIS_URL=redis://127.0.0.1:6379/1
+MOBILE_PUSH_NOTIFICATIONS_ENABLED=1
+PUSH_NOTIFY_ONLINE_USERS=0
+FIREBASE_CREDENTIALS_FILE=/path/to/firebase-service-account.json
+FIREBASE_PROJECT_ID=your-firebase-project-id
 ```
 
 地理位置反解说明：
@@ -228,17 +235,71 @@ AMAP_WEB_API_KEY=你的高德Web服务Key
 - 生成 `/etc/default/websocket-chat`
 - 执行 `systemctl enable` 并启动服务
 
-## 当前最小依赖
+## Android App / 推送基础
 
-`requirements.txt` 已经整理为项目当前实际需要的最小依赖：
+项目现在已经预留了移动端推送后端基础，可配合 Android APK 使用：
+
+- 设备注册接口：`/chat/mobile/devices/register/`
+- 设备注销接口：`/chat/mobile/devices/unregister/`
+- 消息创建后会自动触发移动端推送逻辑
+- 推送默认使用 Firebase Cloud Messaging（FCM）
+- 如果未配置 `FIREBASE_CREDENTIALS_FILE`，聊天功能仍正常，推送会自动跳过
+
+建议的 Android 接入方式：
+
+1. App 登录后，把设备 FCM token POST 到 `/chat/mobile/devices/register/`
+2. 退出登录或关闭通知时，调用 `/chat/mobile/devices/unregister/`
+3. 点击通知后，按消息类型跳转到对应私聊或群聊页面
+
+当前后端推送判定默认策略：
+
+- 用户当前在线时默认不重复发推送
+- 可通过 `PUSH_NOTIFY_ONLINE_USERS=1` 改为在线也推送
+
+## Capacitor 多端封装
+
+仓库新增了一个 `capacitor-app/` 目录，用于把当前 Django 聊天站点封装成 iOS / Android App。
+
+推荐流程：
+
+```bash
+cd capacitor-app
+npm install
+npm run sync:prod
+npm run add:android
+npm run add:ios
+```
+
+说明：
+
+- 默认正式域名已设置为 `https://chat.6143443.xyz/chat/login/`
+- `CAP_SERVER_URL` 仍可指向其他 Django 登录页或聊天入口页
+- Android 模拟器本地联调通常使用 `http://10.0.2.2:8000/chat/login/`
+- 可直接运行 `npm run sync:local-android`
+- Django 页面会自动注入 `static/mobile-bridge.js`
+- 当页面运行在 Capacitor 原生容器内时，会尝试申请通知权限并回传 push token 给 Django
+- Android 详细构建说明见 `capacitor-app/android/README.md`
+
+更多说明见：
+
+```text
+capacitor-app/README.md
+```
+
+## 当前依赖
 
 - Django
 - channels
+- channels_redis
 - daphne
+- firebase-admin
 - requests
+- Pillow
+- psycopg
 
 ## 说明
 
 - 默认数据库是本地 `db.sqlite3`，也支持切换到 PostgreSQL
 - WebSocket 路由为 `/ws/chat/<room_name>/`
-- 当前 Channels 使用内存通道层，适合本地开发
+- 未配置 `REDIS_URL` 时，Channels 默认使用内存通道层，适合本地开发
+- 配置 `REDIS_URL` 后会自动切换为 Redis channel layer，适合生产部署

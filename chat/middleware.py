@@ -2,6 +2,7 @@
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.auth import logout
+from django.utils.deprecation import MiddlewareMixin
 from .models import UserSession
 
 
@@ -41,3 +42,33 @@ class CheckUserSessionMiddleware:
                 pass
         
         return self.get_response(request)
+
+
+class InjectMobileBridgeMiddleware(MiddlewareMixin):
+    def process_response(self, request, response):
+        content_type = response.headers.get('Content-Type', '')
+        if 'text/html' not in content_type:
+            return response
+        if getattr(response, 'streaming', False):
+            return response
+
+        try:
+            content = response.content.decode(response.charset or 'utf-8')
+        except Exception:
+            return response
+
+        if '/static/mobile-bridge.js' in content:
+            return response
+
+        marker = '</body>'
+        if marker not in content.lower():
+            return response
+
+        script_tag = '<script src="/static/mobile-bridge.js"></script>'
+        lower_content = content.lower()
+        marker_index = lower_content.rfind(marker)
+        updated_content = f'{content[:marker_index]}{script_tag}{content[marker_index:]}'
+        response.content = updated_content.encode(response.charset or 'utf-8')
+        if 'Content-Length' in response.headers:
+            response.headers['Content-Length'] = str(len(response.content))
+        return response

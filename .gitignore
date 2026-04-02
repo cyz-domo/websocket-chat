@@ -35,5 +35,17 @@ htmlcov/
 .idea/
 .vscode/
 
+# Capacitor / mobile
+capacitor-app/node_modules/
+capacitor-app/android/.gradle/
+capacitor-app/android/local.properties
+capacitor-app/android/app/build/
+capacitor-app/ios/App/App/public/
+capacitor-app/ios/App/Pods/
+capacitor-app/ios/App/build/
+
+#json
+animalchat-4dc14-firebase-adminsdk-fbsvc-265c626288.json
+
 # macOS
 .DS_Store

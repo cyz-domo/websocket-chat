@@ -1,5 +1,6 @@
 import io
 import asyncio
+import json
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -10,11 +11,13 @@ from unittest.mock import AsyncMock, patch
 
 from .consumers import ChatConsumer
 from .models import (
+    DirectConversation,
     DirectConversationState,
     DirectMessage,
     FriendRequest,
     Friendship,
     Message,
+    MobileDevice,
     Room,
     RoomInvitation,
     RoomJoinRequest,
@@ -620,6 +623,85 @@ class ChatConsumerDisconnectTests(TestCase):
                 'users': {'alice': {'is_online': True}},
             },
         )
+
+
+class MobilePushTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='alice', password='secret123')
+        self.other_user = User.objects.create_user(username='bob', password='secret123')
+        self.room = Room.objects.create(name='push-room', created_by=self.user)
+        RoomMembership.objects.create(room=self.room, user=self.user, is_active=True)
+        RoomMembership.objects.create(room=self.room, user=self.other_user, is_active=True)
+        self.other_profile = UserChatProfile.objects.create(user=self.other_user, friend_id='bobfriend')
+
+    def login_with_valid_session(self):
+        self.client.force_login(self.user)
+        session = self.client.session
+        session.save()
+        UserSession.objects.update_or_create(
+            user=self.user,
+            defaults={'session_key': session.session_key},
+        )
+
+    def test_register_mobile_device_creates_device_record(self):
+        self.login_with_valid_session()
+
+        response = self.client.post(
+            reverse('register_mobile_device'),
+            data=json.dumps({
+                'token': 'fcm-token-1',
+                'platform': 'android',
+                'device_id': 'pixel-9',
+                'device_name': 'Pixel 9',
+                'app_version': '1.0.0',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        device = MobileDevice.objects.get(token='fcm-token-1')
+        self.assertEqual(device.user, self.user)
+        self.assertEqual(device.platform, 'android')
+        self.assertEqual(device.device_name, 'Pixel 9')
+        self.assertTrue(device.notifications_enabled)
+
+    def test_unregister_mobile_device_disables_push(self):
+        self.login_with_valid_session()
+        MobileDevice.objects.create(user=self.user, token='fcm-token-2', platform='android')
+
+        response = self.client.post(
+            reverse('unregister_mobile_device'),
+            data=json.dumps({'token': 'fcm-token-2'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        device = MobileDevice.objects.get(token='fcm-token-2')
+        self.assertFalse(device.notifications_enabled)
+
+    def test_login_page_injects_mobile_bridge_script(self):
+        response = self.client.get(reverse('login'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '/static/mobile-bridge.js')
+
+    @patch('chat.services.push_service.PushNotificationService.notify_direct_message')
+    def test_creating_direct_message_triggers_push_service(self, mock_notify):
+        Friendship.objects.create(user=self.user, friend=self.other_user)
+        Friendship.objects.create(user=self.other_user, friend=self.user)
+        conversation = DirectConversation.objects.create(user1=self.user, user2=self.other_user)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            DirectMessage.objects.create(conversation=conversation, sender=self.user, content='hello')
+
+        mock_notify.assert_called_once()
+
+    @patch('chat.services.push_service.PushNotificationService.notify_room_message')
+    def test_creating_room_message_triggers_push_service(self, mock_notify):
+        with self.captureOnCommitCallbacks(execute=True):
+            Message.objects.create(room=self.room, user=self.user, username='alice', message='room hello')
+
+        mock_notify.assert_called_once()
 
 
 class LocationServiceTests(TestCase):

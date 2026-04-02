@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Animal Chat</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <main class="screen">
+        <section class="panel">
+            <p class="eyebrow">Animal Chat Mobile</p>
+            <h1>Capacitor shell is ready.</h1>
+            <p class="lead">
+                The app defaults to <code>https://chat.6143443.xyz/chat/login/</code>.
+                You can still override it with <code>CAP_SERVER_URL</code> before running
+                <code>npx cap sync</code>.
+            </p>
+            <div class="card">
+                <p class="card-title">Examples</p>
+                <p><code>npm run sync:prod</code></p>
+                <p><code>CAP_SERVER_URL=http://10.0.2.2:8000/chat/login/ npm run sync</code></p>
+                <p><code>CAP_SERVER_URL=https://your-domain/chat/login/ npm run sync</code></p>
+            </div>
+            <div class="card muted">
+                <p class="card-title">Why this setup</p>
+                <p>
+                    The Django pages stay as the source of truth, while Capacitor gives us native packaging,
+                    push notifications, camera access, and store-ready iOS/Android projects.
+                </p>
+            </div>
+        </section>
+    </main>
+    <script src="./app.js"></script>
+</body>
+</html>

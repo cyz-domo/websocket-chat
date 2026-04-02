@@ -7,6 +7,7 @@ from .models import (
     FriendRequest,
     Friendship,
     Message,
+    MobileDevice,
     Room,
     RoomInvitation,
     RoomJoinRequest,
@@ -75,6 +76,13 @@ class UserChatProfileAdmin(admin.ModelAdmin):
 class UserSessionAdmin(admin.ModelAdmin):
     list_display = ('user', 'session_key', 'created_at')
     search_fields = ('user__username', 'session_key')
+
+
+@admin.register(MobileDevice)
+class MobileDeviceAdmin(admin.ModelAdmin):
+    list_display = ('user', 'platform', 'device_name', 'app_version', 'notifications_enabled', 'last_seen_at')
+    list_filter = ('platform', 'notifications_enabled')
+    search_fields = ('user__username', 'token', 'device_id', 'device_name')
 
 
 @admin.register(FriendRequest)

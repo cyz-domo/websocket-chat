@@ -26,6 +26,38 @@ class UserSession(models.Model):
         return f"{self.user.username} - {self.session_key}"
 
 
+class MobileDevice(models.Model):
+    """移动端推送设备"""
+    PLATFORM_ANDROID = 'android'
+    PLATFORM_IOS = 'ios'
+    PLATFORM_CHOICES = [
+        (PLATFORM_ANDROID, 'Android'),
+        (PLATFORM_IOS, 'iOS'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mobile_devices')
+    token = models.CharField(max_length=255, unique=True, verbose_name='推送 Token')
+    platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES, default=PLATFORM_ANDROID, verbose_name='平台')
+    device_id = models.CharField(max_length=128, blank=True, default='', verbose_name='设备 ID')
+    device_name = models.CharField(max_length=120, blank=True, default='', verbose_name='设备名称')
+    app_version = models.CharField(max_length=40, blank=True, default='', verbose_name='App 版本')
+    notifications_enabled = models.BooleanField(default=True, verbose_name='启用推送')
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now=True, verbose_name='最后活跃时间')
+
+    class Meta:
+        verbose_name = '移动推送设备'
+        verbose_name_plural = '移动推送设备'
+        ordering = ['-last_seen_at']
+        indexes = [
+            models.Index(fields=['user', 'platform']),
+            models.Index(fields=['notifications_enabled']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.platform} - {self.device_name or self.device_id or self.token[:18]}"
+
+
 class UserLocation(models.Model):
     """用户地理位置信息"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='location')
