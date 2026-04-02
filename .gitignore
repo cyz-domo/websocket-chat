@@ -43,7 +43,7 @@ capacitor-app/android/app/build/
 capacitor-app/ios/App/App/public/
 capacitor-app/ios/App/Pods/
 capacitor-app/ios/App/build/
-
+capacitor-app/android/app/google-services.json
 #json
 animalchat-4dc14-firebase-adminsdk-fbsvc-265c626288.json
 
