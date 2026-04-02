@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.apps import apps
 
 
 logger = logging.getLogger(__name__)
@@ -78,6 +78,7 @@ class PushNotificationService:
         if not recipient_ids:
             return
 
+        User = apps.get_model('auth', 'User')
         recipients = User.objects.filter(id__in=recipient_ids)
         self._send_to_users(
             recipients,
