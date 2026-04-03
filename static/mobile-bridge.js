@@ -13,6 +13,7 @@
 
     const plugins = capacitor.Plugins || {};
     const PushNotifications = plugins.PushNotifications;
+    const PushSupport = plugins.PushSupport;
     const Device = plugins.Device;
     if (!PushNotifications) {
         return;
@@ -169,6 +170,19 @@
         });
     }
 
+    async function getPushSupportStatus() {
+        if (!capacitor || capacitor.getPlatform() !== 'android' || !PushSupport || typeof PushSupport.getStatus !== 'function') {
+            return { firebaseConfigured: true };
+        }
+
+        try {
+            return await PushSupport.getStatus();
+        } catch (error) {
+            console.warn('Unable to determine Firebase status', error);
+            return { firebaseConfigured: false };
+        }
+    }
+
     async function setupPushNotifications() {
         const cachedToken = loadCachedToken();
         if (cachedToken && isAuthenticatedPage()) {
@@ -194,6 +208,12 @@
         });
 
         try {
+            const pushSupportStatus = await getPushSupportStatus();
+            if (!pushSupportStatus || pushSupportStatus.firebaseConfigured !== true) {
+                console.warn('Firebase is not configured for native push notifications on this build.');
+                return;
+            }
+
             if (capacitor.getPlatform() === 'android' && typeof PushNotifications.createChannel === 'function') {
                 await PushNotifications.createChannel(DEFAULT_CHANNEL);
             }
