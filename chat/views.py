@@ -1,6 +1,7 @@
 import json
 import hashlib
 import io
+import logging
 import mimetypes
 import os
 import re
@@ -68,6 +69,8 @@ from .models import (
 )
 from .presets import CHAT_BUBBLE_STYLES, CHAT_COLOR_THEMES, DEFAULT_CHAT_STYLE, DEFAULT_CHAT_THEME
 from .services.geoip_service import GeoIPService
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_ROOM_AVATARS = ['💬', '🐱', '🐶', '🐻', '🎮', '📚', '☕', '🌙', '🎵', '🍀']
@@ -1838,6 +1841,7 @@ def mark_direct_read(request, public_id):
 def register_mobile_device(request):
     payload = get_json_request_data(request)
     if payload is None:
+        logger.warning('Mobile device registration failed: invalid JSON payload for user %s', request.user.id)
         return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
 
     token = (payload.get('token') or '').strip()
@@ -1847,8 +1851,10 @@ def register_mobile_device(request):
     app_version = (payload.get('app_version') or '').strip()
 
     if not token:
+        logger.warning('Mobile device registration failed: missing token for user %s', request.user.id)
         return JsonResponse({'ok': False, 'error': 'missing_token'}, status=400)
     if platform not in {choice[0] for choice in MobileDevice.PLATFORM_CHOICES}:
+        logger.warning('Mobile device registration failed: invalid platform %s for user %s', platform, request.user.id)
         return JsonResponse({'ok': False, 'error': 'invalid_platform'}, status=400)
 
     device, _ = MobileDevice.objects.update_or_create(
@@ -1861,6 +1867,12 @@ def register_mobile_device(request):
             'app_version': app_version[:40],
             'notifications_enabled': True,
         },
+    )
+    logger.info(
+        'Registered mobile device %s for user %s on platform %s',
+        device.id,
+        request.user.id,
+        device.platform,
     )
     return JsonResponse({
         'ok': True,
@@ -1879,15 +1891,19 @@ def register_mobile_device(request):
 def unregister_mobile_device(request):
     payload = get_json_request_data(request)
     if payload is None:
+        logger.warning('Mobile device unregister failed: invalid JSON payload for user %s', request.user.id)
         return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
 
     token = (payload.get('token') or '').strip()
     if not token:
+        logger.warning('Mobile device unregister failed: missing token for user %s', request.user.id)
         return JsonResponse({'ok': False, 'error': 'missing_token'}, status=400)
 
     updated = MobileDevice.objects.filter(user=request.user, token=token).update(notifications_enabled=False)
     if not updated:
+        logger.warning('Mobile device unregister failed: token not found for user %s', request.user.id)
         return JsonResponse({'ok': False, 'error': 'device_not_found'}, status=404)
+    logger.info('Disabled mobile device token for user %s', request.user.id)
     return JsonResponse({'ok': True})
 
 

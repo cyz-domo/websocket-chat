@@ -114,6 +114,7 @@ class PushNotificationService:
             user_ids.append(user.id)
 
         if not user_ids:
+            logger.info('Push notification skipped because all recipients are considered online or inactive.')
             return
 
         devices = MobileDevice.objects.filter(
@@ -121,6 +122,7 @@ class PushNotificationService:
             notifications_enabled=True,
         ).select_related('user')
         if not devices.exists():
+            logger.info('Push notification skipped because no enabled mobile devices were found for users: %s', user_ids)
             return
 
         for device in devices:
@@ -136,6 +138,7 @@ class PushNotificationService:
                 data={key: str(value) for key, value in data.items() if value is not None},
             )
             messaging.send(message, app=app)
+            logger.info('Push notification sent to device %s for user %s', device.pk, device.user_id)
         except Exception as exc:
             logger.warning('Push send failed for device %s: %s', device.pk, exc)
             if exc.__class__.__name__ in self.INVALID_TOKEN_ERRORS:

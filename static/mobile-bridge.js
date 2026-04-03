@@ -15,7 +15,9 @@
     const PushNotifications = plugins.PushNotifications;
     const PushSupport = plugins.PushSupport;
     const Device = plugins.Device;
+    const LocalNotifications = plugins.LocalNotifications;
     if (!PushNotifications) {
+        console.warn('[mobile-bridge] PushNotifications plugin is unavailable');
         return;
     }
 
@@ -31,6 +33,30 @@
         visibility: 1,
         sound: 'default',
     };
+    const FOREGROUND_NOTIFICATION_CHANNEL = {
+        id: 'chat_messages_foreground',
+        name: 'Chat messages (foreground)',
+        description: 'Animal Chat foreground notifications',
+        importance: 5,
+        visibility: 1,
+        sound: 'default',
+    };
+
+    function logInfo(message, details) {
+        if (details === undefined) {
+            console.log('[mobile-bridge]', message);
+            return;
+        }
+        console.log('[mobile-bridge]', message, details);
+    }
+
+    function logWarn(message, details) {
+        if (details === undefined) {
+            console.warn('[mobile-bridge]', message);
+            return;
+        }
+        console.warn('[mobile-bridge]', message, details);
+    }
 
     function getCsrfToken() {
         const matches = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
@@ -82,11 +108,12 @@
             try {
                 deviceInfo = await Device.getInfo();
             } catch (error) {
-                console.warn('Failed to get device info', error);
+                logWarn('Failed to get device info', error);
             }
         }
 
         try {
+            logInfo('Registering mobile device token with backend');
             const response = await fetchJson(REGISTER_PATH, {
                 token: token,
                 platform: capacitor.getPlatform(),
@@ -94,11 +121,31 @@
                 device_name: buildDeviceName(deviceInfo),
                 app_version: deviceInfo && deviceInfo.appVersion ? deviceInfo.appVersion : '',
             });
-            if (!response.ok) {
-                console.warn('Push token registration failed with status', response.status);
+            const contentType = response.headers.get('content-type') || '';
+            let payload = null;
+            if (contentType.includes('application/json')) {
+                payload = await response.json();
+            } else {
+                const bodyText = await response.text();
+                logWarn('Push token registration returned a non-JSON response', {
+                    status: response.status,
+                    redirected: response.redirected,
+                    bodyPreview: bodyText.slice(0, 160),
+                });
+                return;
             }
+
+            if (!response.ok || !payload || payload.ok !== true) {
+                logWarn('Push token registration failed', {
+                    status: response.status,
+                    redirected: response.redirected,
+                    payload: payload,
+                });
+                return;
+            }
+            logInfo('Push token registered successfully', payload);
         } catch (error) {
-            console.warn('Push token registration request failed', error);
+            logWarn('Push token registration request failed', error);
         }
     }
 
@@ -110,7 +157,7 @@
         try {
             await fetchJson(UNREGISTER_PATH, { token: token }, true);
         } catch (error) {
-            console.warn('Push token unregister request failed', error);
+            logWarn('Push token unregister request failed', error);
         }
     }
 
@@ -118,7 +165,7 @@
         try {
             window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
         } catch (error) {
-            console.warn('Failed to cache push token', error);
+            logWarn('Failed to cache push token', error);
         }
     }
 
@@ -178,39 +225,109 @@
         try {
             return await PushSupport.getStatus();
         } catch (error) {
-            console.warn('Unable to determine Firebase status', error);
+            logWarn('Unable to determine Firebase status', error);
             return { firebaseConfigured: false };
         }
     }
 
+    async function ensureLocalNotificationSupport() {
+        if (!LocalNotifications) {
+            logWarn('LocalNotifications plugin is unavailable');
+            return;
+        }
+
+        try {
+            const permissionResult = await LocalNotifications.requestPermissions();
+            logInfo('Local notification permission result', permissionResult);
+        } catch (error) {
+            logWarn('Local notification permission request failed', error);
+        }
+
+        if (capacitor.getPlatform() === 'android' && typeof LocalNotifications.createChannel === 'function') {
+            try {
+                await LocalNotifications.createChannel(FOREGROUND_NOTIFICATION_CHANNEL);
+            } catch (error) {
+                logWarn('Failed to create foreground local notification channel', error);
+            }
+        }
+    }
+
+    function getNotificationId(notification) {
+        const source = notification && notification.id ? String(notification.id) : String(Date.now());
+        let hash = 0;
+        for (let index = 0; index < source.length; index += 1) {
+            hash = ((hash << 5) - hash) + source.charCodeAt(index);
+            hash |= 0;
+        }
+        return Math.abs(hash) || Date.now();
+    }
+
+    async function showForegroundNotification(notification) {
+        if (!LocalNotifications || typeof LocalNotifications.schedule !== 'function') {
+            return;
+        }
+
+        try {
+            await LocalNotifications.schedule({
+                notifications: [{
+                    id: getNotificationId(notification),
+                    title: (notification && notification.title) || 'Animal Chat',
+                    body: (notification && notification.body) || '你收到一条新消息',
+                    extra: notification && notification.data ? notification.data : {},
+                    channelId: FOREGROUND_NOTIFICATION_CHANNEL.id,
+                    smallIcon: 'ic_stat_chat',
+                }],
+            });
+            logInfo('Displayed foreground local notification');
+        } catch (error) {
+            logWarn('Failed to display foreground local notification', error);
+        }
+    }
+
     async function setupPushNotifications() {
+        logInfo('Initializing push notifications', {
+            platform: capacitor.getPlatform(),
+            path: window.location.pathname,
+        });
+
         const cachedToken = loadCachedToken();
         if (cachedToken && isAuthenticatedPage()) {
+            logInfo('Found cached push token, syncing with backend');
             registerDevice(cachedToken);
         }
 
         PushNotifications.addListener('registration', function (tokenResult) {
             const token = tokenResult && tokenResult.value ? tokenResult.value : '';
             if (!token) {
+                logWarn('Push registration returned an empty token');
                 return;
             }
+            logInfo('Received push registration token', token);
             saveToken(token);
             registerDevice(token);
         });
 
         PushNotifications.addListener('registrationError', function (error) {
-            console.warn('Push registration error', error);
+            logWarn('Push registration error', error);
+        });
+
+        PushNotifications.addListener('pushNotificationReceived', function (notification) {
+            logInfo('Push notification received', notification);
+            if (document.visibilityState === 'visible') {
+                showForegroundNotification(notification);
+            }
         });
 
         PushNotifications.addListener('pushNotificationActionPerformed', function (event) {
             const data = event && event.notification ? event.notification.data : null;
+            logInfo('Push notification action performed', data);
             navigateFromPush(data);
         });
 
         try {
             const pushSupportStatus = await getPushSupportStatus();
             if (!pushSupportStatus || pushSupportStatus.firebaseConfigured !== true) {
-                console.warn('Firebase is not configured for native push notifications on this build.');
+                logWarn('Firebase is not configured for native push notifications on this build.', pushSupportStatus);
                 return;
             }
 
@@ -218,12 +335,17 @@
                 await PushNotifications.createChannel(DEFAULT_CHANNEL);
             }
 
+            await ensureLocalNotificationSupport();
             const permissionResult = await PushNotifications.requestPermissions();
+            logInfo('Push permission result', permissionResult);
             if (permissionResult && permissionResult.receive === 'granted') {
                 await PushNotifications.register();
+                logInfo('Triggered native push registration');
+            } else {
+                logWarn('Push permission was not granted', permissionResult);
             }
         } catch (error) {
-            console.warn('Push permission request failed', error);
+            logWarn('Push permission request failed', error);
         }
     }
 
