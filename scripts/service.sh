@@ -202,6 +202,9 @@ prepare_runtime() {
     echo "Applying migrations..."
     "$PYTHON_BIN" "$PROJECT_DIR/manage.py" migrate --noinput
   fi
+
+  echo "Collecting static files..."
+  "$PYTHON_BIN" "$PROJECT_DIR/manage.py" collectstatic --noinput
 }
 
 run_dev_server() {

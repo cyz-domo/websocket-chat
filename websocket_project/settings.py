@@ -158,6 +158,7 @@ USE_TZ = True
 # 静态文件
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 CHAT_ATTACHMENT_MAX_BYTES = int(os.getenv('CHAT_ATTACHMENT_MAX_BYTES', str(50 * 1024 * 1024)))

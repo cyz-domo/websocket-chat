@@ -32,13 +32,13 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += staticfiles_urlpatterns()
 else:
-    # Keep project static assets reachable when running Daphne directly
+    # Keep collected static assets reachable when running Daphne directly
     # without an external static file server.
     urlpatterns += [
         re_path(
             r'^static/(?P<path>.*)$',
             serve,
-            {'document_root': settings.STATICFILES_DIRS[0]},
+            {'document_root': settings.STATIC_ROOT},
         ),
     ]
 
