@@ -1,6 +1,47 @@
 (function () {
+    const DEBUG_PATH = '/chat/mobile/devices/debug/';
     const capacitor = window.Capacitor;
+
+    function sendDebug(stage, details) {
+        const payload = JSON.stringify({
+            stage: stage,
+            details: details || {},
+        });
+
+        try {
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(DEBUG_PATH, new Blob([payload], { type: 'application/json' }));
+                return;
+            }
+        } catch (error) {
+            // Fall through to fetch.
+        }
+
+        try {
+            fetch(DEBUG_PATH, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                keepalive: true,
+            }).catch(function () {
+                return null;
+            });
+        } catch (error) {
+            // Ignore diagnostics transport issues.
+        }
+    }
+
+    sendDebug('script_loaded', {
+        href: window.location.href,
+        hasCapacitor: !!capacitor,
+    });
+
     if (!capacitor || typeof capacitor.getPlatform !== 'function') {
+        sendDebug('capacitor_missing', {
+            hasCapacitor: !!capacitor,
+            hasGetPlatform: !!(capacitor && capacitor.getPlatform),
+        });
         return;
     }
 
@@ -8,6 +49,9 @@
         ? capacitor.isNativePlatform()
         : ['android', 'ios'].includes(capacitor.getPlatform());
     if (!isNative) {
+        sendDebug('not_native_platform', {
+            platform: capacitor.getPlatform(),
+        });
         return;
     }
 
@@ -32,9 +76,17 @@
     const Device = getPlugin('Device');
     const LocalNotifications = getPlugin('LocalNotifications');
     if (!PushNotifications) {
+        sendDebug('push_plugin_missing', {
+            platform: capacitor.getPlatform(),
+            pluginKeys: Object.keys(plugins || {}),
+        });
         console.warn('[mobile-bridge] PushNotifications plugin is unavailable');
         return;
     }
+    sendDebug('push_plugin_ready', {
+        platform: capacitor.getPlatform(),
+        pluginKeys: Object.keys(plugins || {}),
+    });
 
     const TOKEN_STORAGE_KEY = 'animal_chat_push_token';
     const REGISTER_PATH = '/chat/mobile/devices/register/';
@@ -115,6 +167,10 @@
 
     async function registerDevice(token) {
         if (!token || !isAuthenticatedPage()) {
+            sendDebug('register_skipped', {
+                hasToken: !!token,
+                authenticatedPage: isAuthenticatedPage(),
+            });
             return;
         }
 
@@ -129,6 +185,10 @@
 
         try {
             logInfo('Registering mobile device token with backend');
+            sendDebug('register_called', {
+                platform: capacitor.getPlatform(),
+                tokenPreview: token.slice(0, 12),
+            });
             const response = await fetchJson(REGISTER_PATH, {
                 token: token,
                 platform: capacitor.getPlatform(),
@@ -141,6 +201,10 @@
             if (contentType.includes('application/json')) {
                 payload = await response.json();
             } else {
+                sendDebug('register_non_json', {
+                    status: response.status,
+                    redirected: response.redirected,
+                });
                 const bodyText = await response.text();
                 logWarn('Push token registration returned a non-JSON response', {
                     status: response.status,
@@ -151,6 +215,11 @@
             }
 
             if (!response.ok || !payload || payload.ok !== true) {
+                sendDebug('register_failed', {
+                    status: response.status,
+                    redirected: response.redirected,
+                    payload: payload,
+                });
                 logWarn('Push token registration failed', {
                     status: response.status,
                     redirected: response.redirected,
@@ -158,8 +227,12 @@
                 });
                 return;
             }
+            sendDebug('register_succeeded', payload);
             logInfo('Push token registered successfully', payload);
         } catch (error) {
+            sendDebug('register_request_error', {
+                message: error && error.message ? error.message : String(error),
+            });
             logWarn('Push token registration request failed', error);
         }
     }
@@ -234,12 +307,21 @@
 
     async function getPushSupportStatus() {
         if (!capacitor || capacitor.getPlatform() !== 'android' || !PushSupport || typeof PushSupport.getStatus !== 'function') {
+            sendDebug('push_support_unavailable', {
+                platform: capacitor.getPlatform(),
+                hasPushSupport: !!PushSupport,
+            });
             return { firebaseConfigured: true };
         }
 
         try {
-            return await PushSupport.getStatus();
+            const status = await PushSupport.getStatus();
+            sendDebug('push_support_status', status);
+            return status;
         } catch (error) {
+            sendDebug('push_support_error', {
+                message: error && error.message ? error.message : String(error),
+            });
             logWarn('Unable to determine Firebase status', error);
             return { firebaseConfigured: false };
         }
@@ -314,15 +396,20 @@
         PushNotifications.addListener('registration', function (tokenResult) {
             const token = tokenResult && tokenResult.value ? tokenResult.value : '';
             if (!token) {
+                sendDebug('registration_empty_token');
                 logWarn('Push registration returned an empty token');
                 return;
             }
+            sendDebug('registration_received', {
+                tokenPreview: token.slice(0, 12),
+            });
             logInfo('Received push registration token', token);
             saveToken(token);
             registerDevice(token);
         });
 
         PushNotifications.addListener('registrationError', function (error) {
+            sendDebug('registration_error', error);
             logWarn('Push registration error', error);
         });
 
@@ -342,6 +429,7 @@
         try {
             const pushSupportStatus = await getPushSupportStatus();
             if (!pushSupportStatus || pushSupportStatus.firebaseConfigured !== true) {
+                sendDebug('firebase_not_configured', pushSupportStatus);
                 logWarn('Firebase is not configured for native push notifications on this build.', pushSupportStatus);
                 return;
             }
@@ -352,14 +440,20 @@
 
             await ensureLocalNotificationSupport();
             const permissionResult = await PushNotifications.requestPermissions();
+            sendDebug('permission_result', permissionResult);
             logInfo('Push permission result', permissionResult);
             if (permissionResult && permissionResult.receive === 'granted') {
                 await PushNotifications.register();
+                sendDebug('register_invoked');
                 logInfo('Triggered native push registration');
             } else {
+                sendDebug('permission_not_granted', permissionResult);
                 logWarn('Push permission was not granted', permissionResult);
             }
         } catch (error) {
+            sendDebug('setup_failed', {
+                message: error && error.message ? error.message : String(error),
+            });
             logWarn('Push permission request failed', error);
         }
     }

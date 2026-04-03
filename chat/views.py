@@ -26,6 +26,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import password_validators_help_text_html
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from django.utils.safestring import mark_safe
@@ -1904,6 +1905,26 @@ def unregister_mobile_device(request):
         logger.warning('Mobile device unregister failed: token not found for user %s', request.user.id)
         return JsonResponse({'ok': False, 'error': 'device_not_found'}, status=404)
     logger.info('Disabled mobile device token for user %s', request.user.id)
+    return JsonResponse({'ok': True})
+
+
+@csrf_exempt
+@require_POST
+def mobile_device_debug(request):
+    payload = get_json_request_data(request)
+    if payload is None:
+        return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
+
+    stage = (payload.get('stage') or '').strip()[:64]
+    details = payload.get('details')
+    logger.info(
+        'Mobile push debug stage=%s authenticated=%s user=%s path=%s details=%s',
+        stage or 'unknown',
+        bool(getattr(request, 'user', None) and request.user.is_authenticated),
+        getattr(getattr(request, 'user', None), 'id', None),
+        request.path,
+        details,
+    )
     return JsonResponse({'ok': True})
 
 

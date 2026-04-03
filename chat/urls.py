@@ -9,6 +9,7 @@ urlpatterns = [
     path('profile/', views.profile_settings, name='profile_settings'),
     path('mobile/devices/register/', views.register_mobile_device, name='register_mobile_device'),
     path('mobile/devices/unregister/', views.unregister_mobile_device, name='unregister_mobile_device'),
+    path('mobile/devices/debug/', views.mobile_device_debug, name='mobile_device_debug'),
     path('emoji/upload/', views.upload_user_emoji, name='upload_user_emoji'),
     path('inbox/', views.inbox, name='inbox'),
     path('inbox/summary/', views.inbox_summary, name='inbox_summary'),
