@@ -1,4 +1,5 @@
 # chat/middleware.py
+from pathlib import Path
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.auth import logout
@@ -45,6 +46,15 @@ class CheckUserSessionMiddleware:
 
 
 class InjectMobileBridgeMiddleware(MiddlewareMixin):
+    @staticmethod
+    def get_bridge_script_src():
+        script_path = Path(__file__).resolve().parent.parent / 'static' / 'mobile-bridge.js'
+        try:
+            version = int(script_path.stat().st_mtime)
+        except OSError:
+            version = 0
+        return f'/static/mobile-bridge.js?v={version}'
+
     def process_response(self, request, response):
         content_type = response.headers.get('Content-Type', '')
         if 'text/html' not in content_type:
@@ -64,7 +74,7 @@ class InjectMobileBridgeMiddleware(MiddlewareMixin):
         if marker not in content.lower():
             return response
 
-        script_tag = '<script src="/static/mobile-bridge.js"></script>'
+        script_tag = f'<script src="{self.get_bridge_script_src()}"></script>'
         lower_content = content.lower()
         marker_index = lower_content.rfind(marker)
         updated_content = f'{content[:marker_index]}{script_tag}{content[marker_index:]}'
