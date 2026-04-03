@@ -12,10 +12,25 @@
     }
 
     const plugins = capacitor.Plugins || {};
-    const PushNotifications = plugins.PushNotifications;
-    const PushSupport = plugins.PushSupport;
-    const Device = plugins.Device;
-    const LocalNotifications = plugins.LocalNotifications;
+
+    function getPlugin(pluginName) {
+        if (plugins[pluginName]) {
+            return plugins[pluginName];
+        }
+        if (typeof capacitor.registerPlugin === 'function') {
+            try {
+                return capacitor.registerPlugin(pluginName);
+            } catch (error) {
+                console.warn('[mobile-bridge] Failed to register plugin proxy', pluginName, error);
+            }
+        }
+        return null;
+    }
+
+    const PushNotifications = getPlugin('PushNotifications');
+    const PushSupport = getPlugin('PushSupport');
+    const Device = getPlugin('Device');
+    const LocalNotifications = getPlugin('LocalNotifications');
     if (!PushNotifications) {
         console.warn('[mobile-bridge] PushNotifications plugin is unavailable');
         return;
