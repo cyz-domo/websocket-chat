@@ -17,12 +17,11 @@
                 </svg>
             </div>
             <div class="brand-title">
-                <strong>闲聊室</strong>
-                <span>随时回来坐坐，找个房间聊聊天。</span>
+                <strong>chat</strong>
             </div>
         </div>
-        <div class="topbar-group">
-            <div class="user-chip">
+        <div class="topbar-group topbar-actions">
+            <div class="user-chip topbar-user-chip">
                 <div class="avatar{% if user.chat_profile.avatar_image %} has-photo{% endif %}">
                     {% if user.chat_profile.avatar_image %}
                         <img class="avatar-photo" src="{{ user.chat_profile.avatar_image.url }}" alt="{{ user.chat_profile.get_display_name }} 的头像">
@@ -32,7 +31,6 @@
                 </div>
                 <div class="brand-title">
                     <strong>{{ user.chat_profile.get_display_name }}</strong>
-                    <span>{% if user.is_superuser %}今天也来看看大家聊得怎么样{% else %}欢迎回来，挑个房间坐坐吧{% endif %}</span>
                 </div>
             </div>
             <button class="settings-trigger" type="button" id="quick-action-trigger" aria-label="快速新建">
@@ -49,16 +47,12 @@
                     <span class="notification-badge">{{ inbox_badge_count }}</span>
                 {% endif %}
             </a>
-            <a href="{% url 'profile_settings' %}?next={{ request.get_full_path|urlencode }}" class="settings-trigger settings-link" aria-label="个人设置">
+            <a href="{% url 'profile_settings' %}?next={{ request.get_full_path|urlencode }}" class="settings-trigger settings-link" id="account-menu-trigger" aria-label="个人设置">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M12 3l1.6 2.76 3.12.68-.9 3.07 2.18 2.32-2.18 2.32.9 3.07-3.12.68L12 21l-1.6-2.76-3.12-.68.9-3.07L6 12.17l2.18-2.32-.9-3.07 3.12-.68L12 3z"/>
                     <circle cx="12" cy="12" r="3.2"/>
                 </svg>
             </a>
-            {% if user.is_superuser %}
-                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">管理后台</a>
-            {% endif %}
-            <a href="{% url 'logout' %}" class="btn btn-secondary">退出登录</a>
         </div>
     </header>
 
@@ -74,6 +68,23 @@
         <a href="{% url 'add_friend' %}" class="quick-action-menu-item">
             <strong>添加好友</strong>
             <span>跳到独立页面输入好友 ID</span>
+        </a>
+    </div>
+
+    <div class="quick-action-menu account-menu panel-card" id="account-menu" hidden>
+        <div class="account-menu-summary">
+            <strong>{{ user.chat_profile.get_display_name }}</strong>
+            <span>{% if user.is_superuser %}管理员账号{% else %}聊天账号{% endif %}</span>
+        </div>
+        {% if user.is_superuser %}
+            <a href="{% url 'admin_dashboard' %}" class="quick-action-menu-item">
+                <strong>管理后台</strong>
+                <span>进入站点管理与运营设置</span>
+            </a>
+        {% endif %}
+        <a href="{% url 'logout' %}" class="quick-action-menu-item danger">
+            <strong>退出登录</strong>
+            <span>退出当前网页会话</span>
         </a>
     </div>
 
@@ -1018,9 +1029,12 @@
 
         const quickActionTrigger = document.getElementById('quick-action-trigger');
         const quickActionMenu = document.getElementById('quick-action-menu');
+        const accountMenuTrigger = document.getElementById('account-menu-trigger');
+        const accountMenu = document.getElementById('account-menu');
         const inboxSummaryUrl = '{% url "inbox_summary" %}';
         const inboxTriggerBadge = document.querySelector('.inbox-trigger .notification-badge');
         let quickActionHideTimer = null;
+        let accountMenuHideTimer = null;
         let threadSummarySyncTimer = null;
         let isThreadSummarySyncing = false;
         let inboxSummarySocket = null;
@@ -1051,13 +1065,52 @@
             quickActionTrigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
         }
 
+        function toggleAccountMenu(forceState) {
+            if (!accountMenu || !accountMenuTrigger) return;
+            const shouldOpen = typeof forceState === 'boolean'
+                ? forceState
+                : accountMenu.hidden;
+
+            window.clearTimeout(accountMenuHideTimer);
+
+            if (shouldOpen) {
+                accountMenu.hidden = false;
+                requestAnimationFrame(() => {
+                    accountMenu.classList.add('open');
+                });
+            } else {
+                accountMenu.classList.remove('open');
+                accountMenuHideTimer = window.setTimeout(() => {
+                    accountMenu.hidden = true;
+                }, 180);
+            }
+
+            accountMenuTrigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+        }
+
         if (quickActionTrigger) {
-            quickActionTrigger.addEventListener('click', () => toggleQuickAction());
+            quickActionTrigger.addEventListener('click', () => {
+                toggleAccountMenu(false);
+                toggleQuickAction();
+            });
+        }
+        if (accountMenuTrigger) {
+            accountMenuTrigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                toggleQuickAction(false);
+                toggleAccountMenu();
+            });
         }
         document.addEventListener('click', (event) => {
             if (!quickActionMenu || quickActionMenu.hidden) return;
             if (event.target.closest('#quick-action-trigger') || event.target.closest('#quick-action-menu')) return;
             toggleQuickAction(false);
+        });
+        document.addEventListener('click', (event) => {
+            if (!accountMenu || accountMenu.hidden) return;
+            if (event.target.closest('#account-menu')) return;
+            if (event.target.closest('#account-menu-trigger')) return;
+            toggleAccountMenu(false);
         });
         document.addEventListener('click', (event) => {
             if (!event.target.closest('.thread-swipe-shell')) {

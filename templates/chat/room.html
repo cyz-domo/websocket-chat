@@ -369,10 +369,6 @@
                 {% endif %}
             </div>
 
-            <div class="load-more-wrap" id="load-more-container" hidden>
-                <button class="load-more-btn" id="load-more-btn" style="display:none;">加载更多历史消息</button>
-            </div>
-
             <div class="chat-messages" id="chat-messages">
                 <div class="empty-chat">
                     <div class="empty-chat-card">
@@ -642,9 +638,6 @@
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = protocol + '//' + window.location.host + '/ws/chat/' + roomName + '/';
-        const loadMoreBtn = document.getElementById('load-more-btn');
-        const loadMoreContainer = document.getElementById('load-more-container');
-
         async function copyTextToClipboard(text) {
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(text);
@@ -711,6 +704,17 @@
                 toast.classList.remove('is-visible');
             }, 1800);
         }
+
+        function shouldAllowNativeBrowserMenu(target) {
+            return !!target.closest('input, textarea, select, option, [contenteditable="true"], .message-context-menu, .chat-lightbox');
+        }
+
+        document.addEventListener('contextmenu', function(event) {
+            if (shouldAllowNativeBrowserMenu(event.target)) {
+                return;
+            }
+            event.preventDefault();
+        });
 
         function bindCopyTargets() {
             document.addEventListener('click', async (event) => {
@@ -2237,8 +2241,6 @@
                 messages.forEach(msg => appendMessage(msg, true));
                 historyOffset += messages.length;
                 hasMoreHistory = data.has_more;
-                loadMoreBtn.style.display = hasMoreHistory ? 'inline-flex' : 'none';
-                loadMoreContainer.hidden = !hasMoreHistory;
 
                 if (!hasInitialHistoryLoaded) {
                     requestAnimationFrame(() => {
@@ -2260,8 +2262,6 @@
             if (isLoadingHistory || !hasMoreHistory) return;
 
             isLoadingHistory = true;
-            loadMoreBtn.textContent = '加载中...';
-            loadMoreBtn.disabled = true;
 
             chatSocket.send(JSON.stringify({
                 'type': 'load_more_history',
@@ -2270,9 +2270,6 @@
 
             setTimeout(() => {
                 isLoadingHistory = false;
-                loadMoreBtn.textContent = '加载更多历史消息';
-                loadMoreBtn.disabled = false;
-                loadMoreContainer.hidden = !hasMoreHistory;
             }, 1000);
         }
 
@@ -2356,7 +2353,6 @@
         });
 
         sendBtn.addEventListener('click', sendMessage);
-        loadMoreBtn.addEventListener('click', loadMoreHistory);
 
         if (roomAttachmentTrigger) {
             roomAttachmentTrigger.addEventListener('click', (event) => {

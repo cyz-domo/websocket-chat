@@ -424,6 +424,17 @@
             }, 1800);
         }
 
+        function shouldAllowNativeBrowserMenu(target) {
+            return !!target.closest('input, textarea, select, option, [contenteditable="true"], .message-context-menu, .chat-lightbox');
+        }
+
+        document.addEventListener('contextmenu', function(event) {
+            if (shouldAllowNativeBrowserMenu(event.target)) {
+                return;
+            }
+            event.preventDefault();
+        });
+
         const directSettingsDrawer = document.getElementById('direct-settings-drawer');
         const directSettingsOverlay = document.getElementById('direct-settings-overlay');
         const directChatForm = document.getElementById('direct-chat-form');

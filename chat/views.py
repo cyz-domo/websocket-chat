@@ -119,7 +119,7 @@ def get_thread_preview_text(message_text, limit=36):
 
 def get_attachment_preview_label(kind, name=''):
     if kind == 'image':
-        return f'[图片] {name}'.strip()
+        return '[图片]'
     if kind == 'video':
         return f'[视频] {name}'.strip()
     if kind == 'file':
