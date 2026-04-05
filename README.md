@@ -7,6 +7,8 @@
 - Django
 - Channels
 - Daphne
+- Redis（生产建议）
+- Firebase Cloud Messaging / FCM（移动端推送）
 - SQLite / PostgreSQL
 
 ## 本地启动
@@ -211,6 +213,7 @@ MIGRATE_ON_START=1
 GEOCODE_PROVIDER=auto
 GEOCODE_TIMEOUT=8
 AMAP_WEB_API_KEY=你的高德Web服务Key
+REDIS_URL=redis://127.0.0.1:6379/1
 ```
 
 地理位置反解说明：
@@ -228,17 +231,19 @@ AMAP_WEB_API_KEY=你的高德Web服务Key
 - 生成 `/etc/default/websocket-chat`
 - 执行 `systemctl enable` 并启动服务
 
-## 当前最小依赖
-
-`requirements.txt` 已经整理为项目当前实际需要的最小依赖：
+## 当前依赖
 
 - Django
 - channels
+- channels_redis
 - daphne
 - requests
+- Pillow
+- psycopg
 
 ## 说明
 
 - 默认数据库是本地 `db.sqlite3`，也支持切换到 PostgreSQL
 - WebSocket 路由为 `/ws/chat/<room_name>/`
-- 当前 Channels 使用内存通道层，适合本地开发
+- 未配置 `REDIS_URL` 时，Channels 默认使用内存通道层，适合本地开发
+- 配置 `REDIS_URL` 后会自动切换为 Redis channel layer，适合生产部署

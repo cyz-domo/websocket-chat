@@ -2,6 +2,7 @@
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.auth import logout
+from django.utils.deprecation import MiddlewareMixin
 from .models import UserSession
 
 

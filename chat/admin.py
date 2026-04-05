@@ -76,7 +76,6 @@ class UserSessionAdmin(admin.ModelAdmin):
     list_display = ('user', 'session_key', 'created_at')
     search_fields = ('user__username', 'session_key')
 
-
 @admin.register(FriendRequest)
 class FriendRequestAdmin(admin.ModelAdmin):
     list_display = ('sender', 'recipient', 'status', 'created_at', 'responded_at')

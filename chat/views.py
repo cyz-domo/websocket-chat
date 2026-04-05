@@ -218,6 +218,15 @@ def get_direct_emoji_favorite_url(user, message_id):
     return reverse('favorite_direct_image_emoji', kwargs={'public_id': profile.public_id, 'message_id': message_id})
 
 
+def get_json_request_data(request):
+    if not request.body:
+        return {}
+    try:
+        return json.loads(request.body.decode('utf-8'))
+    except (TypeError, ValueError, UnicodeDecodeError):
+        return None
+
+
 def get_remove_friend_url(user):
     profile = get_or_create_chat_profile(user)
     return reverse('remove_friend', kwargs={'public_id': profile.public_id})

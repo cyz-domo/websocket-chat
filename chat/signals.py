@@ -1,8 +1,7 @@
 from django.contrib.auth.models import User
-from django.db.utils import OperationalError, ProgrammingError
 from django.db.models.signals import post_migrate
+from django.db.utils import OperationalError, ProgrammingError
 from django.dispatch import receiver
-
 
 DEFAULT_ADMIN_USERNAME = 'xyadmin'
 DEFAULT_ADMIN_PASSWORD = 'xyadmin123'
