@@ -2912,6 +2912,13 @@ select.form-input {
     gap: 12px;
 }
 
+.compact-room-settings-form {
+    padding: 16px 18px;
+    border-radius: 22px;
+    background: rgba(255, 251, 246, 0.92);
+    border: 1px solid rgba(104, 74, 52, 0.08);
+}
+
 .toggle-row {
     display: flex;
     align-items: center;
@@ -2958,6 +2965,20 @@ select.form-input {
     gap: 10px;
     min-height: 0;
     overflow-y: auto;
+}
+
+.room-member-preview-list {
+    max-height: 320px;
+    overflow: hidden;
+}
+
+.room-member-preview-item {
+    padding: 10px 12px;
+    border-radius: 16px;
+}
+
+.room-member-preview-item .user-item-actions {
+    gap: 6px;
 }
 
 .user-item {
@@ -3359,7 +3380,7 @@ select.form-input {
 
 .video-attachment-trigger span {
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 1.35;
     color: rgba(255, 246, 239, 0.76);
 }
 
@@ -3377,7 +3398,7 @@ select.form-input {
 }
 
 .chat-attachment-file {
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.24);
     border: 1px solid rgba(104, 74, 52, 0.12);
@@ -3394,6 +3415,7 @@ select.form-input {
 .history-media-item span {
     font-size: 12px;
     color: var(--text-muted);
+    line-height: 1.3;
 }
 
 .upload-pending {
@@ -3459,6 +3481,112 @@ select.form-input {
 
 .upload-cancel-btn:hover {
     color: #a03c2c;
+}
+
+.room-members-page {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+}
+
+.room-members-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.room-members-hero h1 {
+    margin: 10px 0 8px;
+    color: var(--text-strong);
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+}
+
+.room-members-hero p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.7;
+}
+
+.room-members-summary {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.room-members-grid {
+    grid-template-columns: 1.2fr 1fr;
+}
+
+.room-members-list {
+    display: grid;
+    gap: 12px;
+}
+
+.room-member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    border-radius: 22px;
+    background: rgba(255, 251, 246, 0.94);
+    border: 1px solid rgba(104, 74, 52, 0.08);
+}
+
+.room-member-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.room-member-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
+}
+
+.room-member-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.room-member-copy strong {
+    color: var(--text-strong);
+    font-size: 1rem;
+}
+
+.room-member-copy span {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.room-member-side {
+    display: grid;
+    gap: 10px;
+    justify-items: end;
+}
+
+.room-member-badges,
+.room-member-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pill-online {
+    color: var(--success);
+    background: rgba(47, 125, 107, 0.1);
 }
 
 .upload-preview-image {
@@ -4750,7 +4878,8 @@ select.form-input {
     gap: 16px;
     background: rgba(255, 251, 246, 0.94);
     min-height: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.56);
 }
 
@@ -4778,6 +4907,8 @@ select.form-input {
     grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 14px;
     min-height: 0;
+    height: 100%;
+    align-content: start;
 }
 
 .history-panel[hidden] {
@@ -4785,6 +4916,7 @@ select.form-input {
 }
 
 .history-panels-shell {
+    display: grid;
     min-height: 0;
     height: min(72vh, 820px);
     border-radius: 30px;
@@ -4807,11 +4939,13 @@ select.form-input {
 }
 
 .history-column-list {
+    display: grid;
     min-height: 0;
     height: auto;
     overflow-y: auto;
     padding-right: 6px;
     gap: 10px;
+    align-content: start;
     overscroll-behavior: contain;
 }
 
@@ -6316,6 +6450,23 @@ code {
     .direct-chat-page:not(.embed-chat-page) .chat-main {
         height: 100%;
         border-radius: 20px;
+    }
+
+    .room-members-hero,
+    .room-member-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .room-members-summary,
+    .room-member-side {
+        justify-content: flex-start;
+        justify-items: start;
+    }
+
+    .room-members-grid,
+    .drawer-action-grid {
+        grid-template-columns: 1fr;
     }
 
     .direct-chat-page:not(.embed-chat-page) .chat-messages {

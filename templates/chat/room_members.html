@@ -1,0 +1,135 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ room.name }} 的群成员 - {{ site_title }}</title>
+    {% if site_favicon_url %}<link rel="icon" href="{{ site_favicon_url }}">{% endif %}
+    <link rel="stylesheet" href="{% static 'chat-ui.css' %}">
+</head>
+<body class="{% if embed_mode %}room-page embed-chat-page history-embed-body{% else %}lobby-page app-hub-page mobile-compact-shell{% endif %}">
+    {% if not embed_mode %}
+    <header class="topbar panel-card">
+        <div class="topbar-group">
+            <a href="{{ room_back_url }}" class="btn btn-secondary back-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                <span class="back-link-label">返回群聊</span>
+            </a>
+            <div class="brand-title">
+                <strong>群成员管理</strong>
+                <span>优先展示房主、你和管理员，在线状态会直接标记出来。</span>
+            </div>
+        </div>
+    </header>
+    {% endif %}
+
+    {% if messages %}
+        <div class="toast-container">
+            {% for message in messages %}
+                <div class="toast {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if embed_mode %}
+    <main class="embed-chat-layout history-embed-layout">
+        <section class="chat-main panel-card embed-chat-main history-page-shell">
+    {% else %}
+    <main class="hub-layout history-page-layout">
+        {% include 'chat/_module_rail.html' with active_section='inbox' include_lobby_entry=True %}
+        <section class="content-card panel-card content-card-feed history-page-shell room-members-shell">
+    {% endif %}
+            <section class="history-browser-main panel-card room-members-page">
+                {% if embed_mode %}
+                <div class="history-page-header history-page-header-compact">
+                    <a href="{{ room_back_url }}" class="btn btn-secondary back-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <strong class="history-mobile-title">群成员管理</strong>
+                </div>
+                {% endif %}
+
+                <div class="room-members-hero">
+                    <div>
+                        <span class="section-label">Room Members</span>
+                        <h1>{{ room.name }}</h1>
+                        <p>{% if is_owner %}你可以在这里管理管理员和移出成员。{% elif is_admin %}你可以查看当前成员结构和在线状态。{% else %}这里会展示当前群成员、身份和在线状态。{% endif %}</p>
+                    </div>
+                    <div class="room-members-summary">
+                        <span class="pill pill-muted">成员 {{ room_member_count }}</span>
+                        <span class="pill pill-muted">在线 {{ room_online_count }}</span>
+                        <span class="pill pill-owner">管理员 {{ room_admin_count }}/{{ max_room_admin_count }}</span>
+                    </div>
+                </div>
+
+                <div class="room-members-list">
+                    {% for member in room_member_records %}
+                        <div class="room-member-row">
+                            <div class="room-member-main">
+                                <div class="mini-avatar room-member-avatar{% if member.avatar_url %} has-photo{% endif %}">
+                                    {% if member.avatar_url %}
+                                        <img class="avatar-photo" src="{{ member.avatar_url }}" alt="{{ member.display_name }} 的头像">
+                                    {% else %}
+                                        {{ member.avatar_label }}
+                                    {% endif %}
+                                </div>
+                                <div class="room-member-copy">
+                                    <strong>{{ member.display_name }}</strong>
+                                    <span>@{{ member.username }}{% if member.friend_id %} · {{ member.friend_id }}{% endif %}</span>
+                                </div>
+                            </div>
+                            <div class="room-member-side">
+                                <div class="room-member-badges">
+                                    {% if member.is_owner %}
+                                        <span class="pill pill-owner">房主</span>
+                                    {% elif member.is_admin %}
+                                        <span class="pill pill-owner">管理员</span>
+                                    {% endif %}
+                                    {% if member.is_self %}
+                                        <span class="pill pill-muted">你</span>
+                                    {% endif %}
+                                    <span class="pill pill-muted{% if member.is_online %} pill-online{% endif %}">{{ member.is_online|yesno:"在线,离线" }}</span>
+                                </div>
+                                {% if is_owner and not member.is_owner and not member.is_self %}
+                                    <div class="room-member-actions">
+                                        {% if member.is_admin %}
+                                            <form method="post">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="revoke_admin">
+                                                <input type="hidden" name="target_username" value="{{ member.username }}">
+                                                <button class="btn btn-secondary btn-inline" type="submit">取消管理员</button>
+                                            </form>
+                                        {% elif room_admin_count < max_room_admin_count %}
+                                            <form method="post">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="set_admin">
+                                                <input type="hidden" name="target_username" value="{{ member.username }}">
+                                                <button class="btn btn-secondary btn-inline" type="submit">设为管理员</button>
+                                            </form>
+                                        {% endif %}
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_member">
+                                            <input type="hidden" name="target_username" value="{{ member.username }}">
+                                            <button class="btn btn-danger btn-inline" type="submit" onclick="return confirm('确定移出 {{ member.display_name }} 吗？');">移出</button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="quick-action-card">
+                            <p>当前还没有可显示的群成员。</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </section>
+    </main>
+</body>
+</html>

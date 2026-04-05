@@ -38,6 +38,7 @@ urlpatterns = [
     path('rooms/<str:room_name>/messages/<int:message_id>/recall/', views.recall_room_message, name='recall_room_message'),
     path('rooms/<str:room_name>/messages/<int:message_id>/delete/', views.delete_room_message, name='delete_room_message'),
     path('rooms/<str:room_name>/history/', views.room_history, name='room_history'),
+    path('rooms/<str:room_name>/members/', views.room_members_manage, name='room_members_manage'),
     path('rooms/<str:room_name>/emoji/<int:emoji_id>/send/', views.send_room_emoji, name='send_room_emoji'),
     path('rooms/<str:room_name>/emoji/favorite/<int:message_id>/', views.favorite_room_image_emoji, name='favorite_room_image_emoji'),
     path('rooms/<str:room_name>/delete-conversation/', views.delete_room_conversation, name='delete_room_conversation'),

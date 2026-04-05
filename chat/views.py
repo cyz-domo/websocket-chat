@@ -704,6 +704,10 @@ def build_room_history_page_url(room):
     return reverse('room_history', kwargs={'room_name': room.name})
 
 
+def build_room_members_page_url(room):
+    return reverse('room_members_manage', kwargs={'room_name': room.name})
+
+
 def build_direct_history_page_url(user):
     profile = get_or_create_chat_profile(user)
     return reverse('direct_history', kwargs={'public_id': profile.public_id})
@@ -1064,6 +1068,29 @@ def build_room_member_records(room, current_user):
         item['username'].lower(),
     ))
     return member_records
+
+
+def remove_room_member_by_username(room, username):
+    try:
+        target_user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return False, '目标成员不存在'
+
+    if room.created_by_id == target_user.id:
+        return False, '不能移出房主'
+
+    membership, _ = RoomMembership.objects.get_or_create(
+        room=room,
+        user=target_user,
+        defaults={'is_active': True, 'removed_at': None},
+    )
+    if not membership.is_active:
+        return True, '成员已不在群内'
+
+    membership.is_active = False
+    membership.removed_at = timezone.now()
+    membership.save(update_fields=['is_active', 'removed_at'])
+    return True, f'已将 {username} 移出群聊'
 
 
 @never_cache
@@ -1554,6 +1581,134 @@ def room_history(request, room_name):
         'history_avatar_url': room.avatar_url,
         'history_meta': f'群 ID {room.room_id}',
         'embed_mode': embed_mode,
+        'pending_friend_requests_count': FriendRequest.objects.filter(
+            recipient=request.user,
+            status=FriendRequest.STATUS_PENDING,
+        ).count(),
+    })
+
+
+@login_required
+@xframe_options_sameorigin
+def room_members_manage(request, room_name):
+    embed_mode = request.GET.get('embed') == '1'
+    try:
+        room = Room.objects.get(name=room_name)
+        room_membership = get_room_membership(room, request.user)
+        is_owner = room.created_by == request.user
+        is_admin = bool(room_membership and room_membership.is_active and room_membership.is_admin)
+    except Room.DoesNotExist:
+        messages.error(request, '房间不存在')
+        return redirect('chat_index')
+
+    if not is_owner and not room_membership:
+        messages.error(request, '你还不是这个群聊的成员，暂时不能查看成员管理')
+        return redirect('chat_index')
+
+    can_manage_members = can_manage_room_members(room, request.user, membership=room_membership)
+    next_url = get_safe_next_url(request, fallback_name='chat_index')
+    if next_url == reverse('chat_index'):
+        next_url = reverse('chat_room', args=[room.name])
+        if embed_mode:
+            next_url = f'{next_url}?embed=1'
+
+    def redirect_to_members():
+        target_url = reverse('room_members_manage', args=[room.name])
+        query_params = {}
+        if embed_mode:
+            query_params['embed'] = '1'
+        if next_url:
+            query_params['next'] = next_url
+        if query_params:
+            target_url = f"{target_url}?{urlencode(query_params)}"
+        return redirect(target_url)
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '').strip()
+        target_username = request.POST.get('target_username', '').strip()
+
+        if action == 'set_admin':
+            if not is_owner:
+                messages.error(request, '只有房主才能设置群管理员')
+                return redirect_to_members()
+            try:
+                target_user = User.objects.get(username=target_username)
+                target_membership, _ = RoomMembership.objects.get_or_create(
+                    room=room,
+                    user=target_user,
+                    defaults={'is_active': True, 'removed_at': None},
+                )
+            except User.DoesNotExist:
+                messages.error(request, '目标成员不存在')
+                return redirect_to_members()
+
+            if room.created_by_id == target_user.id:
+                messages.error(request, '房主不需要设置为管理员')
+                return redirect_to_members()
+            if not target_membership.is_active:
+                messages.error(request, '只能设置仍在群内的成员为管理员')
+                return redirect_to_members()
+            if target_membership.is_admin:
+                messages.info(request, f'{target_username} 已经是群管理员')
+                return redirect_to_members()
+
+            admin_count = room.memberships.filter(is_active=True, is_admin=True).count()
+            if admin_count >= MAX_ROOM_ADMIN_COUNT:
+                messages.error(request, f'群管理员最多只能设置 {MAX_ROOM_ADMIN_COUNT} 个')
+                return redirect_to_members()
+
+            target_membership.is_admin = True
+            target_membership.save(update_fields=['is_admin'])
+            messages.success(request, f'已将 {target_username} 设为群管理员')
+            return redirect_to_members()
+
+        if action == 'revoke_admin':
+            if not is_owner:
+                messages.error(request, '只有房主才能取消群管理员')
+                return redirect_to_members()
+            try:
+                target_user = User.objects.get(username=target_username)
+                target_membership = RoomMembership.objects.get(room=room, user=target_user)
+            except (User.DoesNotExist, RoomMembership.DoesNotExist):
+                messages.error(request, '目标管理员不存在')
+                return redirect_to_members()
+
+            if not target_membership.is_admin:
+                messages.info(request, f'{target_username} 目前不是群管理员')
+                return redirect_to_members()
+
+            target_membership.is_admin = False
+            target_membership.save(update_fields=['is_admin'])
+            messages.success(request, f'已取消 {target_username} 的群管理员身份')
+            return redirect_to_members()
+
+        if action == 'remove_member':
+            if not is_owner:
+                messages.error(request, '只有房主才能移出成员')
+                return redirect_to_members()
+            ok, message_text = remove_room_member_by_username(room, target_username)
+            if ok:
+                messages.success(request, message_text)
+            else:
+                messages.error(request, message_text)
+            return redirect_to_members()
+
+    room_member_records = build_room_member_records(room, request.user)
+    return render(request, 'chat/room_members.html', {
+        'room': room,
+        'embed_mode': embed_mode,
+        'is_owner': is_owner,
+        'is_admin': is_admin,
+        'can_manage_members': can_manage_members,
+        'room_member_records': room_member_records,
+        'room_member_preview_records': room_member_records[:4],
+        'room_member_count': len(room_member_records),
+        'room_online_count': sum(1 for item in room_member_records if item.get('is_online')),
+        'room_admin_count': room.memberships.filter(is_active=True, is_admin=True).count(),
+        'max_room_admin_count': MAX_ROOM_ADMIN_COUNT,
+        'room_history_url': build_room_history_page_url(room),
+        'room_back_url': next_url,
+        'room_hub_url': get_room_hub_url(room.name),
         'pending_friend_requests_count': FriendRequest.objects.filter(
             recipient=request.user,
             status=FriendRequest.STATUS_PENDING,

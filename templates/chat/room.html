@@ -155,11 +155,15 @@
         </div>
 
         {% if can_manage_room_avatar %}
-            <form class="room-settings-form" method="post" enctype="multipart/form-data">
+            <form class="room-settings-form compact-room-settings-form" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="room_avatar">
+                <div class="settings-section-head">
+                    <strong>群头像</strong>
+                    <span>上传图片或切换备用头像。</span>
+                </div>
                 <div class="stack">
-                    <label class="field-label" for="room_avatar_image">群头像图片</label>
+                    <label class="field-label" for="room_avatar_image">上传图片</label>
                     <input class="form-input" id="room_avatar_image" name="room_avatar_image" type="file" accept="image/png,image/jpeg,image/webp">
                 </div>
                 <div class="stack">
@@ -183,9 +187,13 @@
         {% endif %}
 
         {% if is_owner %}
-            <form class="room-settings-form" method="post">
+            <form class="room-settings-form compact-room-settings-form" method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="room_settings">
+                <div class="settings-section-head">
+                    <strong>群资料</strong>
+                    <span>只保留常用资料，减少抽屉里的视觉负担。</span>
+                </div>
                 <div class="stack">
                     <label class="field-label" for="room_id_display">群ID</label>
                     <input class="form-input copyable-field" id="room_id_display" type="text" value="{{ room.room_id }}" readonly data-copy-text="{{ room.room_id }}" data-copy-success="群 ID 已复制" aria-label="群 ID，点击复制" onclick="return window.codexHandleCopyClick(this)">
@@ -301,10 +309,10 @@
             </div>
         {% endif %}
 
-        <div class="settings-section">
+        <div class="settings-section room-members-preview-section">
             <div class="settings-section-head">
                 <strong>{% if is_owner %}群成员管理{% else %}群成员列表{% endif %}</strong>
-                <span>{% if is_owner %}这里会显示全部群成员，在线状态会实时更新；房主可以设置管理员、最多 {{ max_room_admin_count }} 个，并能直接移出在线成员。{% else %}这里会显示全部群成员，在线状态会实时更新。{% endif %}</span>
+                <span>{% if is_owner %}这里先展示优先成员，完整管理操作放到单独页面里。{% else %}这里先展示优先成员，完整列表可以进入二级页面查看。{% endif %}</span>
             </div>
             <div class="panel-title">
                 <strong>群成员</strong>
@@ -313,21 +321,9 @@
                     <span class="pill pill-owner">管理员 {{ room_admin_count }}/{{ max_room_admin_count }}</span>
                 {% endif %}
             </div>
-            <div class="user-list" id="user-list">
-                <div class="user-item">
-                    <div class="user-item-left">
-                        <div class="mini-avatar{% if chat_profile.avatar_image %} has-photo{% endif %}">
-                            {% if chat_profile.avatar_image %}
-                                <img class="avatar-photo" src="{{ chat_profile.avatar_image.url }}" alt="{{ chat_profile.get_display_name }} 的头像">
-                            {% else %}
-                                {{ chat_profile.get_avatar_label }}
-                            {% endif %}
-                        </div>
-                        <span class="user-name-text">{{ chat_profile.get_display_name }}</span>
-                    </div>
-                    <span class="pill pill-owner">你</span>
-                </div>
-            </div>
+            <div class="user-list room-member-preview-list" id="user-list"></div>
+            <a class="btn btn-secondary" href="{% url 'room_members_manage' room_name %}?{% if embed_mode %}embed=1&amp;{% endif %}next={{ request.get_full_path|urlencode }}">打开群成员管理页</a>
+            <p class="avatar-upload-help">房主、你和管理员会优先显示；完整管理页里可以设置管理员和移出成员。</p>
         </div>
 
         {% if is_owner %}
@@ -1906,6 +1902,7 @@
         function updateUserList(users) {
             currentOnlineUsers = users || {};
             const entries = buildMemberEntries(currentOnlineUsers);
+            const previewEntries = entries.slice(0, 4);
             const onlineCount = entries.filter((entry) => entry.is_online).length;
 
             if (memberCount) {
@@ -1920,7 +1917,7 @@
 
             userList.innerHTML = '';
 
-            for (const meta of entries) {
+            for (const meta of previewEntries) {
                 const user = meta.username;
                 const displayName = meta.display_name || user;
                 const isOwnerUser = !!meta.is_owner;
@@ -1931,7 +1928,7 @@
                     ? `<img class="avatar-photo" src="${escapeHtml(meta.avatar_url)}" alt="${escapeHtml(displayName)} 的头像">`
                     : avatarLabel;
                 const userItem = document.createElement('div');
-                userItem.className = 'user-item';
+                userItem.className = 'user-item room-member-preview-item';
 
                 const badges = [];
                 let ownerActionHtml = '';
@@ -1979,7 +1976,6 @@
                     </div>
                     <div class="user-item-actions">
                         ${badges.join('')}
-                        ${ownerActionHtml}
                     </div>
                 `;
                 const miniAvatar = userItem.querySelector('.mini-avatar, .avatar-action');
