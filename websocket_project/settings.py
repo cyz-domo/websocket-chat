@@ -58,7 +58,7 @@ def get_channel_layer_settings():
 # 安全密钥（生产环境要修改）
 SECRET_KEY = 'django-insecure-your-secret-key-here'
 
-DEBUG = False
+DEBUG = True
 DEFAULT_ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',

@@ -19,6 +19,7 @@ urlpatterns = [
     path('moments/<int:moment_id>/like/', views.like_moment, name='like_moment'),
     path('moments/<int:moment_id>/comment/', views.comment_moment, name='comment_moment'),
     path('moments/user/id/<str:public_id>/', views.user_moments, name='user_moments'),
+    path('notifications/', views.notifications, name='notifications'),
     path('rooms/create/', views.create_room_page, name='create_room'),
     path('rooms/discover/', views.discover_rooms_page, name='discover_rooms'),
     path('rooms/join/<str:room_id>/', views.join_room, name='join_room'),

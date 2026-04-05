@@ -54,6 +54,9 @@ from .models import (
     FriendRequest,
     Friendship,
     Message,
+    Moment,
+    MomentComment,
+    Notification,
     Room,
     RoomInvitation,
     RoomJoinRequest,
@@ -2383,17 +2386,59 @@ def friends_view(request):
 @login_required
 @ensure_csrf_cookie
 def moments_view(request):
-    profile = get_or_create_chat_profile(request.user)
-    pending_count = FriendRequest.objects.filter(
-        recipient=request.user,
-        status=FriendRequest.STATUS_PENDING,
-    ).count()
-    friends_count = Friendship.objects.filter(user=request.user).count()
-    return render(request, 'chat/moments.html', {
-        'chat_profile': profile,
-        'pending_friend_requests_count': pending_count,
-        'friends_count': friends_count,
-    })
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Moments view called for user: {request.user.username}")
+    
+    try:
+        profile = get_or_create_chat_profile(request.user)
+        logger.info(f"Profile obtained: {profile}")
+        
+        pending_count = FriendRequest.objects.filter(
+            recipient=request.user,
+            status=FriendRequest.STATUS_PENDING,
+        ).count()
+        logger.info(f"Pending friend requests: {pending_count}")
+        
+        friends_count = Friendship.objects.filter(user=request.user).count()
+        logger.info(f"Friends count: {friends_count}")
+        
+        unread_notifications_count = Notification.objects.filter(
+            user=request.user,
+            is_read=False
+        ).count()
+        logger.info(f"Unread notifications: {unread_notifications_count}")
+        
+        site_config = SiteConfiguration.get_solo()
+        site_title = site_config.resolved_site_title if site_config else 'animal chat'
+        site_favicon_url = site_config.favicon_url if site_config else ''
+        logger.info(f"Site config: {site_title}")
+        
+        friends = Friendship.objects.filter(user=request.user).values_list('friend_id', flat=True)
+        logger.info(f"Friends IDs: {list(friends)}")
+        
+        moments = Moment.objects.filter(
+            Q(user=request.user) |
+            Q(visibility='public') |
+            Q(user_id__in=friends, visibility='friends')
+        ).order_by('-created_at')
+        logger.info(f"Moments found: {moments.count()}")
+        
+        context = {
+            'chat_profile': profile,
+            'pending_friend_requests_count': pending_count,
+            'friends_count': friends_count,
+            'unread_notifications_count': unread_notifications_count,
+            'site_title': site_title,
+            'site_favicon_url': site_favicon_url,
+            'moments': moments,
+        }
+        logger.info(f"Context prepared: {list(context.keys())}")
+        
+        return render(request, 'chat/moments.html', context)
+    except Exception as e:
+        logger.error(f"Error in moments view: {str(e)}", exc_info=True)
+        raise
 
 
 @login_required
@@ -3364,6 +3409,41 @@ def admin_site_settings(request):
 
 
 @login_required
+def notifications(request):
+    """通知页面"""
+    profile = get_or_create_chat_profile(request.user)
+    
+    # 获取通知
+    notifications = Notification.objects.filter(user=request.user).select_related(
+        'moment',
+        'moment__user',
+        'moment__user__chat_profile',
+        'comment',
+        'comment__user',
+        'comment__user__chat_profile',
+        'comment__parent_comment',
+        'comment__parent_comment__user',
+        'comment__parent_comment__user__chat_profile',
+    ).order_by('-created_at')
+    
+    # 标记为已读
+    unread_notifications = notifications.filter(is_read=False)
+    unread_notifications.update(is_read=True)
+    
+    # 获取站点配置
+    site_config = SiteConfiguration.get_solo()
+    site_title = site_config.resolved_site_title if site_config else 'animal chat'
+    site_favicon_url = site_config.favicon_url if site_config else ''
+    
+    return render(request, 'chat/notifications.html', {
+        'notifications': notifications,
+        'chat_profile': profile,
+        'site_title': site_title,
+        'site_favicon_url': site_favicon_url,
+    })
+
+
+@login_required
 def moments_view(request):
     """朋友圈主页"""
     # 获取当前用户的好友
@@ -3400,12 +3480,16 @@ def moments_view(request):
                 visible_moments.append(moment)
         moments = visible_moments
     
+    # 获取未读通知数
+    unread_notifications_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    
     return render(request, 'chat/moments.html', {
         'moments': moments,
         'friends_count': friend_ids.count(),
         'target_user': target_user,
         'target_profile': target_profile,
         'target_is_friend': target_is_friend,
+        'unread_notifications_count': unread_notifications_count,
     })
 
 
@@ -3537,24 +3621,59 @@ def comment_moment(request, moment_id):
     try:
         moment = Moment.objects.get(id=moment_id)
         content = request.POST.get('content', '').strip()
+        parent_comment_id = request.POST.get('parent_comment_id', '').strip()
+        
         if not content:
             return JsonResponse({'status': 'error', 'message': '评论内容不能为空'})
+        
+        parent_comment = None
+        if parent_comment_id:
+            try:
+                parent_comment = MomentComment.objects.get(id=parent_comment_id, moment=moment)
+            except MomentComment.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': '父评论不存在'})
         
         comment = MomentComment.objects.create(
             moment=moment,
             user=request.user,
+            parent_comment=parent_comment,
             content=content,
         )
         
-        # 序列化评论数据
+        # 创建通知
         profile = get_or_create_chat_profile(request.user)
+        user_display_name = profile.get_display_name()
+        
+        if parent_comment:
+            # 回复通知
+            if parent_comment.user != request.user:
+                Notification.objects.create(
+                    user=parent_comment.user,
+                    type=Notification.NOTIFICATION_TYPE_MOMENT_REPLY,
+                    content=f'{user_display_name} 回复了你的评论: {content[:50]}...',
+                    moment=moment,
+                    comment=comment,
+                )
+        else:
+            # 评论通知
+            if moment.user != request.user:
+                Notification.objects.create(
+                    user=moment.user,
+                    type=Notification.NOTIFICATION_TYPE_MOMENT_COMMENT,
+                    content=f'{user_display_name} 评论了你的动态: {content[:50]}...',
+                    moment=moment,
+                    comment=comment,
+                )
+        
+        # 序列化评论数据
         comment_data = {
             'id': comment.id,
             'content': comment.content,
             'created_at': comment.created_at.isoformat(),
+            'parent_comment_id': parent_comment.id if parent_comment else None,
             'user': {
                 'username': request.user.username,
-                'display_name': profile.get_display_name(),
+                'display_name': user_display_name,
                 'avatar_label': profile.get_avatar_label(),
                 'avatar_url': profile.avatar_url,
             }

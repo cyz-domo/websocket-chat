@@ -8,7 +8,7 @@
     {% if site_favicon_url %}<link rel="icon" href="{{ site_favicon_url }}">{% endif %}
     <link rel="stylesheet" href="{% static 'chat-ui.css' %}">
 </head>
-<body class="lobby-page app-hub-page">
+<body class="lobby-page app-hub-page mobile-compact-shell create-moment-page">
     <header class="topbar panel-card">
         <div class="topbar-group">
             <a href="{% url 'moments' %}" class="btn btn-secondary back-link">
@@ -35,7 +35,7 @@
     <main class="social-layout">
         {% include 'chat/_module_rail.html' with active_section='moments' include_lobby_entry=True use_buttons=False %}
 
-        <section class="content-card panel-card">
+        <section class="content-card panel-card create-moment-shell">
             <div class="content-hero">
                 <h1>发布动态</h1>
                 <p>分享你的生活，让好友们看到你的精彩瞬间</p>
@@ -44,173 +44,243 @@
             <div class="create-moment-container">
                 <form method="POST" enctype="multipart/form-data" class="create-moment-form">
                     {% csrf_token %}
-                    
-                    <div class="form-group">
-                        <label for="content">内容</label>
-                        <textarea id="content" name="content" rows="5" placeholder="分享你的想法..."></textarea>
-                    </div>
-                    
-                    <!-- 文件预览区域 -->
-                    <div class="form-group">
-                        <div class="file-preview-container" id="file-preview-container">
-                            <div class="file-preview-list" id="file-preview-list">
-                                <!-- 预览内容将通过JavaScript动态添加 -->
+
+                    <div class="create-moment-grid">
+                        <section class="compose-panel">
+                            <div class="compose-card compose-card-primary">
+                                <div class="compose-card-head">
+                                    <h2>这一刻想分享什么</h2>
+                                    <p>先写下你的想法，再补充图片、视频和位置信息。</p>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="content">内容</label>
+                                    <textarea id="content" name="content" rows="6" placeholder="分享你的想法、心情或今天发生的小事..."></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>添加图片或视频</label>
+                                    <div class="upload-area upload-area-card">
+                                        <input type="file" id="file-upload" name="files" multiple accept="image/*,video/*" style="display: none;">
+                                        <button type="button" class="btn btn-secondary upload-button" onclick="document.getElementById('file-upload').click()">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                            选择文件
+                                        </button>
+                                        <p class="form-help">支持图片和视频，最多可上传 9 个文件</p>
+                                        <p class="form-help">拖动下方缩略卡片可以自由调整展示顺序</p>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="file-preview-container" id="file-preview-container">
+                                        <div class="file-preview-list" id="file-preview-list">
+                                            <!-- 预览内容将通过JavaScript动态添加 -->
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        </section>
+
+                        <aside class="compose-panel compose-panel-side">
+                            <div class="compose-card">
+                                <div class="compose-card-head">
+                                    <h2>发布设置</h2>
+                                    <p>补充位置和可见范围，让这条动态更完整。</p>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="location">位置</label>
+                                    <input type="text" id="location" name="location" placeholder="添加位置">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>可见范围</label>
+                                    <div class="visibility-options">
+                                        <label class="visibility-option">
+                                            <input type="radio" name="visibility" value="public" {% if form.visibility.value == 'public' %}checked{% endif %}>
+                                            <span class="visibility-option-body">
+                                                <span class="visibility-icon public">🌍</span>
+                                                <span class="visibility-copy">
+                                                    <strong>公开</strong>
+                                                    <small>所有可见用户都可以查看</small>
+                                                </span>
+                                            </span>
+                                        </label>
+                                        <label class="visibility-option">
+                                            <input type="radio" name="visibility" value="friends" {% if form.visibility.value == 'friends' or not form.visibility.value %}checked{% endif %}>
+                                            <span class="visibility-option-body">
+                                                <span class="visibility-icon friends">👥</span>
+                                                <span class="visibility-copy">
+                                                    <strong>仅好友可见</strong>
+                                                    <small>推荐，适合日常生活分享</small>
+                                                </span>
+                                            </span>
+                                        </label>
+                                        <label class="visibility-option">
+                                            <input type="radio" name="visibility" value="private" {% if form.visibility.value == 'private' %}checked{% endif %}>
+                                            <span class="visibility-option-body">
+                                                <span class="visibility-icon private">🔒</span>
+                                                <span class="visibility-copy">
+                                                    <strong>仅自己可见</strong>
+                                                    <small>作为私人记录保存</small>
+                                                </span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </aside>
                     </div>
-                    
-                    <!-- 统一上传入口 -->
-                    <div class="form-group">
-                        <label>添加图片或视频</label>
-                        <div class="upload-area">
-                            <input type="file" id="file-upload" name="files" multiple accept="image/*,video/*" style="display: none;">
-                            <button type="button" class="btn btn-secondary upload-button" onclick="document.getElementById('file-upload').click()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                                选择文件
-                            </button>
-                            <p class="form-help">点击按钮选择图片或视频，最多可上传9个文件</p>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="location">位置</label>
-                        <input type="text" id="location" name="location" placeholder="添加位置">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>可见范围</label>
-                        <div class="visibility-options">
-                            <label class="visibility-option">
-                                <input type="radio" name="visibility" value="public" {% if form.visibility.value == 'public' %}checked{% endif %}>
-                                <span class="visibility-icon public">🌍</span>
-                                <span>公开</span>
-                            </label>
-                            <label class="visibility-option">
-                                <input type="radio" name="visibility" value="friends" {% if form.visibility.value == 'friends' or not form.visibility.value %}checked{% endif %}>
-                                <span class="visibility-icon friends">👥</span>
-                                <span>仅好友可见</span>
-                            </label>
-                            <label class="visibility-option">
-                                <input type="radio" name="visibility" value="private" {% if form.visibility.value == 'private' %}checked{% endif %}>
-                                <span class="visibility-icon private">🔒</span>
-                                <span>仅自己可见</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- 隐藏的文件输入 -->
+
                     <input type="file" id="images" name="images" multiple accept="image/*" style="display: none;">
                     <input type="file" id="videos" name="videos" multiple accept="video/*" style="display: none;">
-                    
-                    <div class="form-actions">
+
+                    <div class="form-actions create-moment-actions">
                         <a href="{% url 'moments' %}" class="btn btn-secondary">取消</a>
                         <button type="submit" class="btn btn-primary publish-btn">发布</button>
                     </div>
                 </form>
-
-                <script>
-                    // 防止重复提交
-                    document.querySelector('form').addEventListener('submit', function(e) {
-                        const publishBtn = document.querySelector('.publish-btn');
-                        publishBtn.disabled = true;
-                        publishBtn.textContent = '发布中...';
-                    });
-                </script>
             </div>
         </section>
-
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const fileUpload = document.getElementById('file-upload');
-                const filePreviewList = document.getElementById('file-preview-list');
-                const imagesInput = document.getElementById('images');
-                const videosInput = document.getElementById('videos');
-                
-                let selectedFiles = [];
-                
-                fileUpload.addEventListener('change', function(e) {
-                    const files = e.target.files;
-                    
-                    if (files.length > 0) {
-                        // 检查文件数量
-                        if (selectedFiles.length + files.length > 9) {
-                            alert('最多只能上传9个文件');
-                            return;
-                        }
-                        
-                        for (let i = 0; i < files.length; i++) {
-                            const file = files[i];
-                            selectedFiles.push(file);
-                            
-                            // 创建预览元素
-                            const previewItem = document.createElement('div');
-                            previewItem.className = 'file-preview-item';
-                            previewItem.dataset.index = selectedFiles.length - 1;
-                            
-                            if (file.type.startsWith('image/')) {
-                                // 图片预览
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    previewItem.innerHTML = `
-                                        <img src="${e.target.result}" alt="图片预览">
-                                        <button type="button" class="remove-file" onclick="removeFile(${selectedFiles.length - 1})">×</button>
-                                    `;
-                                };
-                                reader.readAsDataURL(file);
-                            } else if (file.type.startsWith('video/')) {
-                                // 视频预览
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    previewItem.innerHTML = `
-                                        <video src="${e.target.result}" controls></video>
-                                        <button type="button" class="remove-file" onclick="removeFile(${selectedFiles.length - 1})">×</button>
-                                    `;
-                                };
-                                reader.readAsDataURL(file);
-                            }
-                            
-                            filePreviewList.appendChild(previewItem);
-                        }
-                    }
-                });
-                
-                // 移除文件
-                window.removeFile = function(index) {
-                    selectedFiles.splice(index, 1);
-                    const previewItems = document.querySelectorAll('.file-preview-item');
-                    previewItems[index].remove();
-                    
-                    // 更新剩余预览项的索引
-                    previewItems.forEach((item, i) => {
-                        if (i > index) {
-                            item.dataset.index = i - 1;
-                            item.querySelector('.remove-file').onclick = function() {
-                                removeFile(i - 1);
-                            };
-                        }
-                    });
-                };
-                
-                // 提交表单时，将选中的文件分配到对应的输入字段
-                document.querySelector('form').addEventListener('submit', function(e) {
-                    const imageFiles = selectedFiles.filter(file => file.type.startsWith('image/'));
-                    const videoFiles = selectedFiles.filter(file => file.type.startsWith('video/'));
-                    
-                    // 创建新的FileList对象
-                    const imageFileList = new DataTransfer();
-                    imageFiles.forEach(file => imageFileList.items.add(file));
-                    imagesInput.files = imageFileList.files;
-                    
-                    const videoFileList = new DataTransfer();
-                    videoFiles.forEach(file => videoFileList.items.add(file));
-                    videosInput.files = videoFileList.files;
-                });
-            });
-        </script>
     </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('.create-moment-form');
+            const fileUpload = document.getElementById('file-upload');
+            const filePreviewList = document.getElementById('file-preview-list');
+            const imagesInput = document.getElementById('images');
+            const videosInput = document.getElementById('videos');
+            const publishBtn = document.querySelector('.publish-btn');
+
+            let selectedFiles = [];
+            let dragIndex = null;
+
+            function updatePreviewGridClass() {
+                filePreviewList.className = 'file-preview-list';
+                const count = Math.min(selectedFiles.length, 9);
+                if (count > 0) {
+                    filePreviewList.classList.add(`file-preview-list-count-${count}`);
+                }
+            }
+
+            function renderPreviewList() {
+                filePreviewList.innerHTML = '';
+                updatePreviewGridClass();
+
+                selectedFiles.forEach((file, index) => {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'file-preview-item';
+                    previewItem.dataset.index = index;
+                    previewItem.draggable = true;
+
+                    previewItem.innerHTML = `
+                        <div class="file-preview-badge">${index + 1}</div>
+                        <div class="file-preview-meta">
+                            <span class="file-preview-hint">拖动排序</span>
+                            <button type="button" class="remove-file" aria-label="移除文件">×</button>
+                        </div>
+                        <div class="file-preview-media"></div>
+                    `;
+
+                    const mediaContainer = previewItem.querySelector('.file-preview-media');
+                    const removeButton = previewItem.querySelector('.remove-file');
+
+                    removeButton.addEventListener('click', function() {
+                        removeFile(index);
+                    });
+
+                    const reader = new FileReader();
+                    reader.onload = function(loadEvent) {
+                        if (file.type.startsWith('image/')) {
+                            mediaContainer.innerHTML = `<img src="${loadEvent.target.result}" alt="图片预览">`;
+                        } else if (file.type.startsWith('video/')) {
+                            mediaContainer.innerHTML = `<video src="${loadEvent.target.result}" muted playsinline controls></video>`;
+                        }
+                    };
+                    reader.readAsDataURL(file);
+
+                    previewItem.addEventListener('dragstart', function() {
+                        dragIndex = index;
+                        previewItem.classList.add('dragging');
+                    });
+
+                    previewItem.addEventListener('dragend', function() {
+                        dragIndex = null;
+                        previewItem.classList.remove('dragging');
+                        filePreviewList.querySelectorAll('.file-preview-item').forEach(item => item.classList.remove('drag-over'));
+                    });
+
+                    previewItem.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                        if (dragIndex === null || dragIndex === index) return;
+                        previewItem.classList.add('drag-over');
+                    });
+
+                    previewItem.addEventListener('dragleave', function() {
+                        previewItem.classList.remove('drag-over');
+                    });
+
+                    previewItem.addEventListener('drop', function(e) {
+                        e.preventDefault();
+                        previewItem.classList.remove('drag-over');
+
+                        if (dragIndex === null || dragIndex === index) return;
+
+                        const movedFile = selectedFiles.splice(dragIndex, 1)[0];
+                        selectedFiles.splice(index, 0, movedFile);
+                        renderPreviewList();
+                    });
+
+                    filePreviewList.appendChild(previewItem);
+                });
+            }
+
+            fileUpload.addEventListener('change', function(e) {
+                const files = e.target.files;
+
+                if (files.length > 0) {
+                    if (selectedFiles.length + files.length > 9) {
+                        alert('最多只能上传9个文件');
+                        return;
+                    }
+
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        selectedFiles.push(file);
+                    }
+
+                    renderPreviewList();
+                }
+
+                fileUpload.value = '';
+            });
+
+            window.removeFile = function(index) {
+                selectedFiles.splice(index, 1);
+                renderPreviewList();
+            };
+
+            form.addEventListener('submit', function() {
+                const imageFiles = selectedFiles.filter(file => file.type.startsWith('image/'));
+                const videoFiles = selectedFiles.filter(file => file.type.startsWith('video/'));
+
+                const imageFileList = new DataTransfer();
+                imageFiles.forEach(file => imageFileList.items.add(file));
+                imagesInput.files = imageFileList.files;
+
+                const videoFileList = new DataTransfer();
+                videoFiles.forEach(file => videoFileList.items.add(file));
+                videosInput.files = videoFileList.files;
+
+                publishBtn.disabled = true;
+                publishBtn.textContent = '发布中...';
+            });
+        });
+    </script>
 </body>
 </html>

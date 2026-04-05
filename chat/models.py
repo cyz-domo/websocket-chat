@@ -699,6 +699,7 @@ class MomentComment(models.Model):
     """朋友圈动态评论"""
     moment = models.ForeignKey(Moment, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='moment_comments')
+    parent_comment = models.ForeignKey('self', on_delete=models.CASCADE, related_name='replies', null=True, blank=True, verbose_name='父评论')
     content = models.TextField(verbose_name='评论内容')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='评论时间')
 
@@ -709,3 +710,34 @@ class MomentComment(models.Model):
 
     def __str__(self):
         return f"{self.user.username}: {self.content[:50]}"
+
+
+class Notification(models.Model):
+    """通知"""
+    NOTIFICATION_TYPE_MOMENT_COMMENT = 'moment_comment'
+    NOTIFICATION_TYPE_MOMENT_REPLY = 'moment_reply'
+    NOTIFICATION_TYPE_CHOICES = [
+        (NOTIFICATION_TYPE_MOMENT_COMMENT, '动态评论'),
+        (NOTIFICATION_TYPE_MOMENT_REPLY, '评论回复'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', verbose_name='接收用户')
+    type = models.CharField(max_length=20, choices=NOTIFICATION_TYPE_CHOICES, verbose_name='通知类型')
+    content = models.TextField(verbose_name='通知内容')
+    moment = models.ForeignKey(Moment, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications', verbose_name='相关动态')
+    comment = models.ForeignKey(MomentComment, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications', verbose_name='相关评论')
+    is_read = models.BooleanField(default=False, verbose_name='是否已读')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        verbose_name = '通知'
+        verbose_name_plural = '通知'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_type_display()} - {self.user.username}"
+
+    def get_absolute_url(self):
+        if self.moment:
+            return f"/moments/?user={self.moment.user.chat_profile.public_id}#moment-{self.moment.id}"
+        return '/moments/'
