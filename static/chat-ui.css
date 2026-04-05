@@ -2773,6 +2773,32 @@ select.form-input {
     height: 20px;
 }
 
+.chat-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.connection-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(104, 74, 52, 0.08);
+    background: rgba(255, 252, 247, 0.88);
+    box-shadow: 0 12px 24px rgba(67, 43, 25, 0.06);
+}
+
+.connection-indicator-text {
+    color: var(--text-body);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .status-dot {
     width: 10px;
     height: 10px;
@@ -2829,6 +2855,12 @@ select.form-input {
 
 .room-settings-drawer.open {
     transform: translateX(0);
+}
+
+.drawer-action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
 }
 
 .drawer-head {
@@ -3410,6 +3442,23 @@ select.form-input {
 
 .upload-progress.is-error .upload-progress-bar {
     background: linear-gradient(90deg, rgba(190, 79, 57, 0.96), rgba(160, 52, 36, 0.9));
+}
+
+.upload-cancel-btn {
+    margin-top: 10px;
+    border: 0;
+    background: transparent;
+    color: var(--danger);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0;
+    cursor: pointer;
+    justify-self: start;
+}
+
+.upload-cancel-btn:hover {
+    color: #a03c2c;
 }
 
 .upload-preview-image {
@@ -5841,6 +5890,10 @@ code {
         flex-wrap: nowrap;
     }
 
+    .room-page:not(.embed-chat-page) .chat-head-actions {
+        gap: 8px;
+    }
+
     .room-page:not(.embed-chat-page) .settings-trigger {
         width: 38px;
         height: 38px;
@@ -6238,6 +6291,10 @@ code {
         justify-content: flex-end;
         gap: 8px;
         flex-wrap: nowrap;
+    }
+
+    .direct-chat-page:not(.embed-chat-page) .chat-head-actions {
+        gap: 8px;
     }
 
     .direct-chat-page:not(.embed-chat-page) .settings-trigger {

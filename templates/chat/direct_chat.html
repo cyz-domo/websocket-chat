@@ -66,7 +66,6 @@
     </header>
     {% endif %}
 
-    {% if not embed_mode %}
     <div class="settings-overlay" id="direct-settings-overlay" onclick="toggleDirectSettings(false)"></div>
     <aside class="room-settings-drawer panel-card" id="direct-settings-drawer">
         <div class="drawer-head">
@@ -82,6 +81,22 @@
         </div>
         <div class="stack">
             <div class="quick-action-card stack">
+                <div class="direct-friend-card">
+                    <div class="mini-avatar direct-friend-avatar{% if other_profile.avatar_image %} has-photo{% endif %}">
+                        {% if other_profile.avatar_image %}
+                            <img class="avatar-photo" src="{{ other_profile.avatar_image.url }}" alt="{{ other_profile.get_display_name }} 的头像">
+                        {% else %}
+                            {{ other_profile.get_avatar_label }}
+                        {% endif %}
+                    </div>
+                    <div class="stack compact-stack">
+                        <strong>{{ other_profile.get_display_name }}</strong>
+                        <span>好友 ID：{{ other_profile.friend_id }}</span>
+                        <span>{{ other_profile.bio|default:"对方还没有填写个人介绍。" }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="quick-action-card stack">
                 <strong>历史记录状态</strong>
                 <p>{% if cleared_at %}你已在 {{ cleared_at|date:"Y-m-d H:i" }} 清理过一次自己这边的可见历史。{% else %}你这边还没有清理过私聊历史。{% endif %}</p>
                 <form method="post">
@@ -92,23 +107,18 @@
             </div>
             <div class="quick-action-card stack">
                 <strong>好友操作</strong>
-                <a class="btn btn-secondary" href="{% url 'user_profile' other_profile.public_id %}?next={{ request.get_full_path|urlencode }}">查看好友资料</a>
+                <div class="drawer-action-grid">
+                    <a class="btn btn-secondary" href="{% url 'user_profile' other_profile.public_id %}?next={{ request.get_full_path|urlencode }}">查看好友资料</a>
+                    <a class="btn btn-secondary" href="{{ direct_history_url }}?{% if embed_mode %}embed=1&amp;{% endif %}next={{ request.get_full_path|urlencode }}">打开聊天记录</a>
+                </div>
                 <form method="post" action="{% url 'remove_friend' other_profile.public_id %}">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{% url 'friends' %}">
                     <button class="btn btn-danger" type="submit" onclick="return confirm('确定删除这个好友吗？删除后将不能继续直接聊天。');">删除好友</button>
                 </form>
             </div>
-            <div class="quick-action-card stack">
-                <div class="settings-section-head">
-                    <strong>聊天记录</strong>
-                    <span>消息、图片和文件会在独立页面里集中浏览。</span>
-                </div>
-                <a class="btn btn-secondary" href="{{ direct_history_url }}?{% if embed_mode %}embed=1&amp;{% endif %}next={{ request.get_full_path|urlencode }}">打开聊天记录页</a>
-            </div>
         </div>
     </aside>
-    {% endif %}
 
     {% if messages %}
         <div class="toast-container">
@@ -148,7 +158,18 @@
                     <strong>{% if embed_mode %}{{ other_profile.get_display_name }}{% else %}私聊记录{% endif %}</strong>
                     <span>{% if embed_mode %}{{ other_profile.bio|default:"你们已经是好友，可以直接聊天。" }}{% else %}这里只展示你当前还能看到的历史消息，新消息会持续自动保存。{% endif %}</span>
                 </div>
-                <span class="pill pill-muted" id="direct-status-text">连接中...</span>
+                <div class="chat-head-actions">
+                    <div class="connection-indicator" id="direct-connection-indicator" aria-live="polite">
+                        <span class="status-dot" id="direct-status-dot"></span>
+                        <span class="connection-indicator-text" id="direct-status-text">连接中...</span>
+                    </div>
+                    <button class="settings-trigger" type="button" onclick="toggleDirectSettings()" aria-label="私聊设置">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M12 3l1.6 2.76 3.12.68-.9 3.07 2.18 2.32-2.18 2.32.9 3.07-3.12.68L12 21l-1.6-2.76-3.12-.68.9-3.07L6 12.17l2.18-2.32-.9-3.07 3.12-.68L12 3z"/>
+                            <circle cx="12" cy="12" r="3.2"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <div class="chat-messages direct-message-list" id="direct-message-list">
@@ -410,6 +431,7 @@
         const directMessageInput = document.getElementById('direct-message-input');
         const directSendBtn = document.getElementById('direct-send-btn');
         const directStatusText = document.getElementById('direct-status-text');
+        const directStatusDot = document.getElementById('direct-status-dot');
         const directReplyDraft = document.getElementById('direct-reply-draft');
         const directReplyDraftUser = document.getElementById('direct-reply-draft-user');
         const directReplyDraftText = document.getElementById('direct-reply-draft-text');
@@ -474,6 +496,7 @@
         let directLongPressTriggered = false;
         let directImageLightboxItems = [];
         let directImageLightboxIndex = -1;
+        const directPendingUploads = new Map();
         const directMessageSignatures = new Set();
         const PRECISE_LOCATION_SYNC_KEY = 'codex_precise_location_synced_at';
         const PRECISE_LOCATION_SYNC_TTL = 10 * 60 * 1000;
@@ -842,8 +865,10 @@
         }
 
         function updateDirectStatus(connected) {
-            directStatusText.textContent = connected ? '实时已连接' : '连接已断开';
-            directStatusText.classList.toggle('pill-muted', true);
+            directStatusText.textContent = connected ? '已连接' : '连接中...';
+            if (directStatusDot) {
+                directStatusDot.classList.toggle('connected', !!connected);
+            }
         }
 
         function markPreciseLocationSynced() {
@@ -1052,6 +1077,7 @@
                                     <div class="upload-progress-bar"></div>
                                 </div>
                             </div>
+                            <button class="upload-cancel-btn" type="button">取消发送</button>
                         </div>
                         <div class="msg-time">${timeStr}</div>
                     </div>
@@ -1079,6 +1105,17 @@
             if (percentNode) percentNode.textContent = isError ? '失败' : `${normalized}%`;
             if (barNode) barNode.style.width = `${isError ? 100 : normalized}%`;
             if (fileDesc) fileDesc.textContent = statusText || (isError ? '上传失败，请稍后重试' : '上传中...');
+        }
+
+        function cleanupDirectPendingUpload(messageElement) {
+            if (!messageElement) return;
+            const pendingId = messageElement.dataset.pendingUploadId;
+            if (pendingId) {
+                directPendingUploads.delete(pendingId);
+            }
+            if (messageElement.dataset.previewUrl) {
+                URL.revokeObjectURL(messageElement.dataset.previewUrl);
+            }
         }
 
         async function markDirectAsRead() {
@@ -1483,6 +1520,7 @@
                 directSendBtn.disabled = true;
                 await new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
+                    directPendingUploads.set(pendingMessage.dataset.pendingUploadId, xhr);
                     xhr.open('POST', directAttachmentUploadUrl, true);
                     xhr.withCredentials = true;
                     xhr.setRequestHeader('X-CSRFToken', csrfToken);
@@ -1509,6 +1547,7 @@
                         if (pendingMessage.dataset.previewUrl) {
                             URL.revokeObjectURL(pendingMessage.dataset.previewUrl);
                         }
+                        cleanupDirectPendingUpload(pendingMessage);
                         pendingMessage.remove();
                         appendDirectMessage(payload.message);
                         toggleDirectAttachmentPanel(false);
@@ -1519,6 +1558,12 @@
                     xhr.send(formData);
                 });
             } catch (error) {
+                cleanupDirectPendingUpload(pendingMessage);
+                if (error.message === 'upload_aborted') {
+                    pendingMessage.remove();
+                    showDirectToast('已取消发送');
+                    return;
+                }
                 updateDirectPendingUploadMessage(
                     pendingMessage,
                     100,
@@ -1538,6 +1583,9 @@
             updateDirectStatus(false);
             if (!isDirectPageUnloading) {
                 directStatusText.textContent = '重连中...';
+                if (directStatusDot) {
+                    directStatusDot.classList.remove('connected');
+                }
                 directReconnectNoticeShown = true;
             }
             scheduleDirectReconnect();
@@ -1614,6 +1662,16 @@
         });
 
         directMessageList.addEventListener('click', function(event) {
+            const cancelButton = event.target.closest('.upload-cancel-btn');
+            if (cancelButton) {
+                const messageElement = cancelButton.closest('.message.upload-pending');
+                const pendingId = messageElement?.dataset.pendingUploadId;
+                const xhr = pendingId ? directPendingUploads.get(pendingId) : null;
+                if (xhr) {
+                    xhr.abort();
+                }
+                return;
+            }
             if (directLongPressTriggered) {
                 directLongPressTriggered = false;
                 event.preventDefault();

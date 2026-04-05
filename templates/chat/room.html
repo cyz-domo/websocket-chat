@@ -346,19 +346,30 @@
                         <span class="pill pill-muted">总人数 <strong id="total-member-count">{{ room_total_members }}</strong></span>
                         <span class="pill pill-muted">在线人数 <strong id="online-member-count">{{ room_online_members }}</strong></span>
                     </div>
-                    <button class="settings-trigger" type="button" onclick="toggleRoomSettings()" aria-label="{% if is_owner %}群聊设置{% else %}群成员与设置{% endif %}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M12 3l1.6 2.76 3.12.68-.9 3.07 2.18 2.32-2.18 2.32.9 3.07-3.12.68L12 21l-1.6-2.76-3.12-.68.9-3.07L6 12.17l2.18-2.32-.9-3.07 3.12-.68L12 3z"/>
-                            <circle cx="12" cy="12" r="3.2"/>
-                        </svg>
-                    </button>
+                    <div class="chat-head-actions">
+                        <div class="connection-indicator" aria-live="polite">
+                            <span class="status-dot" id="status-dot"></span>
+                            <span class="connection-indicator-text" id="room-status-text">连接中...</span>
+                        </div>
+                        <button class="settings-trigger" type="button" onclick="toggleRoomSettings()" aria-label="{% if is_owner %}群聊设置{% else %}群成员与设置{% endif %}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M12 3l1.6 2.76 3.12.68-.9 3.07 2.18 2.32-2.18 2.32.9 3.07-3.12.68L12 21l-1.6-2.76-3.12-.68.9-3.07L6 12.17l2.18-2.32-.9-3.07 3.12-.68L12 3z"/>
+                                <circle cx="12" cy="12" r="3.2"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 {% else %}
                 <div>
                     <strong>房间对话</strong>
                     <span>进入后会自动同步欢迎消息与最近聊天记录。</span>
                 </div>
-                <span class="pill pill-muted">WebSocket 实时连接</span>
+                <div class="chat-head-actions">
+                    <div class="connection-indicator" aria-live="polite">
+                        <span class="status-dot" id="room-inline-status-dot"></span>
+                        <span class="connection-indicator-text" id="room-status-text">连接中...</span>
+                    </div>
+                </div>
                 {% endif %}
             </div>
 
@@ -372,7 +383,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                         </svg>
-                        <p>欢迎来到 #{{ room_name }}，等连接完成后就可以开始实时聊天。</p>
+                        <p>欢迎来到 #{{ room_name }}，现在可以直接查看历史消息并开始聊天。</p>
                     </div>
                 </div>
             </div>
@@ -548,7 +559,8 @@
         const messagesDiv = document.getElementById('chat-messages');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
-        const statusDot = document.getElementById('status-dot');
+        const statusDot = document.getElementById('status-dot') || document.getElementById('room-inline-status-dot');
+        const roomStatusText = document.getElementById('room-status-text');
         const userList = document.getElementById('user-list');
         const memberCount = document.getElementById('member-count');
         const onlineMemberCount = document.getElementById('online-member-count');
@@ -619,6 +631,7 @@
         let preciseLocationAttemptCount = 0;
         let preciseLocationSynced = false;
         let roomPendingUploadId = 0;
+        const roomPendingUploads = new Map();
         let roomCameraStream = null;
         let roomCameraRecorder = null;
         let roomCameraChunks = [];
@@ -732,6 +745,7 @@
         }
 
         bindCopyTargets();
+        updateRoomConnectionIndicator(false, '连接中...');
 
         function formatAttachmentSize(size) {
             const normalized = Number(size || 0);
@@ -761,6 +775,15 @@
                 return false;
             }
             return true;
+        }
+
+        function updateRoomConnectionIndicator(connected, label) {
+            if (statusDot) {
+                statusDot.classList.toggle('connected', !!connected);
+            }
+            if (roomStatusText) {
+                roomStatusText.textContent = label || (connected ? '已连接' : '连接中...');
+            }
         }
 
         function applyAttachmentDisplayNames(root = document) {
@@ -858,6 +881,7 @@
             if (statusDot) {
                 statusDot.classList.add('connected');
             }
+            updateRoomConnectionIndicator(true, '已连接');
             if (!isRemovedFromRoom) {
                 messageInput.focus();
             }
@@ -1281,6 +1305,7 @@
                 sendBtn.disabled = true;
                 await new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
+                    roomPendingUploads.set(pendingMessage.dataset.pendingUploadId, xhr);
                     xhr.open('POST', roomAttachmentUploadUrl, true);
                     xhr.withCredentials = true;
                     xhr.setRequestHeader('X-CSRFToken', csrfToken);
@@ -1307,6 +1332,7 @@
                         if (pendingMessage.dataset.previewUrl) {
                             URL.revokeObjectURL(pendingMessage.dataset.previewUrl);
                         }
+                        cleanupRoomPendingUpload(pendingMessage);
                         pendingMessage.remove();
                         appendMessage(payload.message);
                         toggleRoomAttachmentPanel(false);
@@ -1317,6 +1343,12 @@
                     xhr.send(formData);
                 });
             } catch (error) {
+                cleanupRoomPendingUpload(pendingMessage);
+                if (error.message === 'upload_aborted') {
+                    pendingMessage.remove();
+                    showCopyToast('已取消发送');
+                    return;
+                }
                 updateRoomPendingUploadMessage(
                     pendingMessage,
                     100,
@@ -1336,6 +1368,7 @@
             if (statusDot) {
                 statusDot.classList.remove('connected');
             }
+            updateRoomConnectionIndicator(false, '未连接');
             if (!hasShownRemovedAlert) {
                 hasShownRemovedAlert = true;
                 window.alert(message || '你已被移出该群聊，不可再发送消息。');
@@ -1723,6 +1756,7 @@
                                     <div class="upload-progress-bar"></div>
                                 </div>
                             </div>
+                            <button class="upload-cancel-btn" type="button">取消发送</button>
                         </div>
                         <div class="msg-time">${timeStr}</div>
                     </div>
@@ -1750,6 +1784,17 @@
             if (percentNode) percentNode.textContent = isError ? '失败' : `${normalized}%`;
             if (barNode) barNode.style.width = `${isError ? 100 : normalized}%`;
             if (fileDesc) fileDesc.textContent = statusText || (isError ? '上传失败，请稍后重试' : '上传中...');
+        }
+
+        function cleanupRoomPendingUpload(messageElement) {
+            if (!messageElement) return;
+            const pendingId = messageElement.dataset.pendingUploadId;
+            if (pendingId) {
+                roomPendingUploads.delete(pendingId);
+            }
+            if (messageElement.dataset.previewUrl) {
+                URL.revokeObjectURL(messageElement.dataset.previewUrl);
+            }
         }
 
         function applyAppearance(element, appearance) {
@@ -2030,6 +2075,16 @@
         });
 
         messagesDiv.addEventListener('click', function(event) {
+            const cancelButton = event.target.closest('.upload-cancel-btn');
+            if (cancelButton) {
+                const messageElement = cancelButton.closest('.message.upload-pending');
+                const pendingId = messageElement?.dataset.pendingUploadId;
+                const xhr = pendingId ? roomPendingUploads.get(pendingId) : null;
+                if (xhr) {
+                    xhr.abort();
+                }
+                return;
+            }
             if (roomLongPressTriggered) {
                 roomLongPressTriggered = false;
                 event.preventDefault();
@@ -2260,6 +2315,7 @@
             if (statusDot) {
                 statusDot.classList.remove('connected');
             }
+            updateRoomConnectionIndicator(false, !isRoomPageUnloading ? '重连中...' : '未连接');
             if (!isRoomPageUnloading && !roomConnectionNoticeShown) {
                 roomConnectionNoticeShown = true;
             }
