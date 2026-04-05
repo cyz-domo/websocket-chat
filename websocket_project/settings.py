@@ -5,6 +5,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def get_env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 def get_database_settings():
     backend = os.getenv('DB_BACKEND', 'sqlite').strip().lower()
     if backend in {'postgres', 'postgresql', 'pg'}:
@@ -33,6 +40,21 @@ def get_database_settings():
         }
     }
 
+
+def get_channel_layer_settings():
+    redis_url = os.getenv('REDIS_URL', '').strip()
+    if redis_url:
+        return {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [redis_url],
+            },
+        }
+
+    return {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
+
 # 安全密钥（生产环境要修改）
 SECRET_KEY = 'django-insecure-your-secret-key-here'
 
@@ -44,6 +66,7 @@ AMAP_WEB_API_KEY = os.getenv('AMAP_WEB_API_KEY', '')
 REVERSE_GEOCODE_URL = os.getenv('REVERSE_GEOCODE_URL', 'https://nominatim.openstreetmap.org/reverse')
 BIGDATA_REVERSE_URL = os.getenv('BIGDATA_REVERSE_URL', 'https://api.bigdatacloud.net/data/reverse-geocode-client')
 GEOCODE_USER_AGENT = os.getenv('GEOCODE_USER_AGENT', 'websocket-chat/1.0 (location reverse geocoding)')
+REDIS_URL = os.getenv('REDIS_URL', '').strip()
 
 DEFAULT_CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.app',
@@ -130,6 +153,7 @@ USE_TZ = True
 # 静态文件
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 CHAT_ATTACHMENT_MAX_BYTES = int(os.getenv('CHAT_ATTACHMENT_MAX_BYTES', str(50 * 1024 * 1024)))
@@ -153,14 +177,5 @@ USE_X_FORWARDED_HOST = True
 
 # Channels配置
 CHANNEL_LAYERS = {
-    'default': {
-        # 使用内存作为通道层（开发环境）
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-
-        # 生产环境可以使用Redis
-        # 'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        # 'CONFIG': {
-        #     "hosts": [('127.0.0.1', 6379)],
-        # },
-    }
+    'default': get_channel_layer_settings()
 }

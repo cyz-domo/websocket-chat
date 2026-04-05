@@ -1,5 +1,6 @@
 import io
 import asyncio
+import json
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -10,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 from .consumers import ChatConsumer
 from .models import (
+    DirectConversation,
     DirectConversationState,
     DirectMessage,
     FriendRequest,
@@ -620,6 +622,16 @@ class ChatConsumerDisconnectTests(TestCase):
                 'users': {'alice': {'is_online': True}},
             },
         )
+
+
+class MobilePushTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='alice', password='secret123')
+        self.other_user = User.objects.create_user(username='bob', password='secret123')
+        self.room = Room.objects.create(name='push-room', created_by=self.user)
+        RoomMembership.objects.create(room=self.room, user=self.user, is_active=True)
+        RoomMembership.objects.create(room=self.room, user=self.other_user, is_active=True)
+        self.other_profile = UserChatProfile.objects.create(user=self.other_user, friend_id='bobfriend')
 
 
 class LocationServiceTests(TestCase):
