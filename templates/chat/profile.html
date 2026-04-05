@@ -65,7 +65,7 @@
         };
     </script>
 </head>
-<body class="lobby-page mobile-compact-shell">
+<body class="lobby-page mobile-compact-shell profile-page">
     <header class="topbar panel-card">
         <div class="topbar-group">
             <a href="{% url 'chat_index' %}" class="btn btn-secondary back-link">
@@ -93,7 +93,14 @@
                     <span>这些设置是你自己的，不属于某个房间。</span>
                 </div>
             </div>
-            <a href="{% url 'logout' %}" class="btn btn-secondary">退出登录</a>
+            <a href="{% url 'logout' %}" class="btn btn-secondary logout-link" aria-label="退出登录">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                    <path d="M15 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/>
+                    <path d="M10 17l5-5-5-5"/>
+                    <path d="M15 12H4"/>
+                </svg>
+                <span class="topbar-btn-label">退出登录</span>
+            </a>
         </div>
     </header>
 

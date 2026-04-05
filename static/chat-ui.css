@@ -2133,8 +2133,11 @@ select.form-input {
 .comment-clickable {
     cursor: pointer;
     padding: 8px 12px;
-    border-radius: 8px;
-    transition: all 0.18s ease;
+    border-radius: 14px;
+    border: 1px solid rgba(128, 109, 89, 0.12);
+    background: linear-gradient(180deg, rgba(255, 252, 248, 0.94), rgba(248, 242, 234, 0.86));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
     min-height: 44px;
     display: inline-block;
     width: 100%;
@@ -2142,12 +2145,14 @@ select.form-input {
 }
 
 .comment-clickable:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: linear-gradient(180deg, rgba(255, 253, 250, 0.98), rgba(246, 238, 228, 0.92));
+    border-color: rgba(99, 126, 175, 0.22);
 }
 
 .comment-clickable:active {
-    background: rgba(0, 0, 0, 0.1);
-    transform: scale(0.98);
+    background: rgba(240, 232, 222, 0.96);
+    transform: scale(0.985);
+    box-shadow: inset 0 1px 1px rgba(118, 92, 70, 0.08);
 }
 
 /* 提示信息样式 */
@@ -3527,6 +3532,74 @@ select.form-input {
     flex-direction: column;
     gap: 10px;
     background: linear-gradient(180deg, rgba(253, 249, 242, 0.86), rgba(246, 236, 225, 0.72));
+}
+
+.history-load-indicator {
+    align-self: center;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 auto 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255, 251, 246, 0.92);
+    border: 1px solid rgba(104, 74, 52, 0.12);
+    color: #7a6656;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    box-shadow: 0 8px 18px rgba(75, 53, 34, 0.06);
+    backdrop-filter: blur(10px);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.history-load-indicator[data-state="idle"] {
+    opacity: 0.92;
+}
+
+.history-load-indicator[data-state="pulling"] {
+    transform: translateY(2px);
+    background: rgba(255, 248, 240, 0.96);
+    color: #6e5440;
+    box-shadow: 0 10px 22px rgba(75, 53, 34, 0.08);
+}
+
+.history-load-indicator[data-state="loading"] {
+    background: rgba(245, 250, 255, 0.96);
+    color: #4b6fa7;
+    border-color: rgba(76, 130, 214, 0.18);
+}
+
+.history-load-indicator[data-state="loading"]::after {
+    content: "";
+    display: inline-block;
+    width: 22px;
+    height: 6px;
+    margin-left: 8px;
+    border-radius: 999px;
+    vertical-align: middle;
+    background:
+        radial-gradient(circle, currentColor 0 2px, transparent 2.5px) 0 50% / 33% 100% no-repeat,
+        radial-gradient(circle, currentColor 0 2px, transparent 2.5px) 50% 50% / 33% 100% no-repeat,
+        radial-gradient(circle, currentColor 0 2px, transparent 2.5px) 100% 50% / 33% 100% no-repeat;
+    animation: history-indicator-dots 0.9s infinite ease-in-out;
+}
+
+.history-load-indicator[data-state="done"] {
+    background: rgba(250, 248, 244, 0.94);
+    color: #8a7a6d;
+}
+
+@keyframes history-indicator-dots {
+    0%, 100% {
+        transform: translateY(0);
+        opacity: 0.55;
+    }
+    50% {
+        transform: translateY(-1px);
+        opacity: 1;
+    }
 }
 
 .room-page.embed-chat-page .chat-messages {
@@ -6942,6 +7015,134 @@ code {
 }
 
 @media (max-width: 420px) {
+    .topbar-btn-label {
+        display: none;
+    }
+
+    .notifications-page .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .notifications-page .topbar .topbar-group {
+        width: auto;
+        min-width: 0;
+    }
+
+    .notifications-page .topbar .topbar-group:first-child {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .notifications-page .topbar .topbar-group:last-child {
+        display: flex;
+        margin-left: auto;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .notifications-page .topbar .btn:not(.back-link) {
+        width: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0;
+        font-size: 13px;
+    }
+
+    .moments-page .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .moments-page .topbar .topbar-group {
+        width: auto;
+        min-width: 0;
+    }
+
+    .moments-page .topbar .topbar-group:first-child {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .moments-page .topbar .topbar-group:last-child {
+        display: flex;
+        margin-left: auto;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .moments-page .topbar .btn:not(.back-link) {
+        width: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0;
+        font-size: 13px;
+    }
+
+    .profile-page .topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .profile-page .topbar .topbar-group {
+        width: 100%;
+    }
+
+    .profile-page .topbar .topbar-group:first-child {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+    }
+
+    .profile-page .topbar .topbar-group:last-child {
+        margin-left: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 40px;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .profile-page .topbar .brand-title strong {
+        font-size: 1rem;
+    }
+
+    .profile-page .topbar .user-chip {
+        width: 100%;
+        min-width: 0;
+        padding: 6px 8px;
+        gap: 8px;
+    }
+
+    .profile-page .topbar .user-chip .brand-title strong,
+    .profile-page .topbar .user-chip .brand-title span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .profile-page .logout-link {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+    }
+
     .mobile-compact-shell .topbar {
         padding: 10px 14px;
         min-height: auto;
@@ -7504,6 +7705,7 @@ code {
     display: flex;
     gap: 8px;
     margin-bottom: 12px;
+    align-items: flex-start;
 }
 
 .comment-avatar {
@@ -7512,6 +7714,7 @@ code {
     border-radius: 50%;
     overflow: hidden;
     flex-shrink: 0;
+    box-shadow: 0 6px 14px rgba(40, 56, 80, 0.12);
 }
 
 .comment-avatar img {
@@ -7552,13 +7755,20 @@ code {
 
 .comment-time {
     font-size: 11px;
-    color: #999;
+    color: #8f9aab;
+    letter-spacing: 0.01em;
 }
 
 .comment-text {
     font-size: 14px;
-    line-height: 1.4;
-    color: #333;
+    line-height: 1.55;
+    color: #2e3440;
+}
+
+.comment-prefix,
+.comment-reply-prefix {
+    color: #4c6ea8;
+    font-weight: 600;
 }
 
 .comment-form {
@@ -8079,6 +8289,19 @@ code {
     flex-shrink: 0;
 }
 
+.topbar-btn-label {
+    display: inline;
+}
+
+.profile-page .logout-link svg {
+    width: 10px;
+    height: 10px;
+}
+
+.profile-page .logout-link {
+    gap: 8px;
+}
+
 .notifications-link svg,
 .topbar .btn-primary svg {
     width: 18px;
@@ -8147,6 +8370,176 @@ code {
 }
 
 @media (max-width: 720px) {
+    .moments-page .topbar .topbar-btn-label,
+    .notifications-page .topbar .topbar-btn-label,
+    .profile-page .topbar .topbar-btn-label {
+        display: none;
+    }
+
+    .notifications-page .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .notifications-page .topbar .topbar-group {
+        width: auto;
+        min-width: 0;
+    }
+
+    .notifications-page .topbar .topbar-group:first-child {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .notifications-page .topbar .topbar-group:last-child {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .notifications-page .topbar .brand-title {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .notifications-page .topbar .brand-title strong {
+        max-width: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .notifications-page .topbar .btn:not(.back-link) {
+        width: 44px;
+        min-width: 44px;
+        justify-content: center;
+        padding: 0;
+        border-radius: 14px;
+    }
+
+    .notifications-page .topbar .settings-trigger {
+        justify-self: end;
+    }
+
+    .moments-page .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .moments-page .topbar .topbar-group {
+        width: auto;
+        min-width: 0;
+    }
+
+    .moments-page .topbar .topbar-group:first-child {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .moments-page .topbar .topbar-group:last-child {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .moments-page .topbar .brand-title {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .moments-page .topbar .brand-title strong {
+        max-width: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .moments-page .topbar .btn:not(.back-link) {
+        width: 44px;
+        min-width: 44px;
+        justify-content: center;
+        padding: 0;
+        border-radius: 14px;
+    }
+
+    .moments-page .topbar .settings-trigger {
+        justify-self: end;
+    }
+
+    .moments-page .notifications-link,
+    .moments-page .topbar .btn-primary {
+        position: relative;
+    }
+
+    .moments-page .notifications-link .notification-badge {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+    }
+
+    .profile-page .topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .profile-page .topbar .topbar-group {
+        width: 100%;
+    }
+
+    .profile-page .topbar .topbar-group:first-child {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+    }
+
+    .profile-page .topbar .topbar-group:last-child {
+        margin-left: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .profile-page .topbar .user-chip {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .profile-page .topbar .user-chip .brand-title strong,
+    .profile-page .topbar .user-chip .brand-title span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .profile-page .logout-link {
+        width: 42px;
+        min-width: 42px;
+        height: 42px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+    }
+
+    .profile-page .logout-link svg {
+        width: 18px;
+        height: 18px;
+    }
+
     .create-moment-page .social-layout {
         grid-template-columns: 1fr;
         width: calc(100vw - 20px);
@@ -8316,17 +8709,29 @@ code {
 
     .comment-form-inline,
     .comment-form-reply {
-        flex-wrap: wrap;
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
     }
 
     .comment-input {
+        flex: 1 1 auto;
+        min-width: 0;
         min-height: 40px;
         font-size: 14px;
+        padding: 10px 12px;
+        border-radius: 14px;
     }
 
     .comment-submit {
+        flex: 0 0 auto;
         min-height: 40px;
-        padding: 0 14px;
+        min-width: 68px;
+        padding: 0 16px;
+        border-radius: 14px;
+        white-space: nowrap;
     }
 
     .moment-comment {
@@ -8340,10 +8745,27 @@ code {
     }
 
     .comment-clickable {
-        padding: 8px 10px;
-        min-height: 40px;
+        padding: 10px 12px;
+        min-height: 42px;
         font-size: 13px;
         line-height: 1.55;
+        border-radius: 14px;
+    }
+
+    .comment-time {
+        font-size: 10px;
+    }
+
+    .comment-prefix,
+    .comment-reply-prefix {
+        display: inline;
+        line-height: 1.5;
+    }
+
+    .comment-content {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
 
     .moment-menu {

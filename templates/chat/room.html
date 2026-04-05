@@ -370,6 +370,7 @@
             </div>
 
             <div class="chat-messages" id="chat-messages">
+                <div class="history-load-indicator" id="history-load-indicator" hidden>上滑加载更早消息</div>
             </div>
 
             <div class="chat-input-area">
@@ -541,6 +542,7 @@
         const roomName = {{ room_name_json }};
         const isOwner = {{ is_owner|yesno:"true,false" }};
         const messagesDiv = document.getElementById('chat-messages');
+        const historyLoadIndicator = document.getElementById('history-load-indicator');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
         const statusDot = document.getElementById('status-dot') || document.getElementById('room-inline-status-dot');
@@ -594,6 +596,7 @@
         const userProfileNextQuery = 'next={{ user_profile_next_url|urlencode }}';
         let baseRoomMembers = {{ room_members_json }};
         const isRemovedFromRoom = {{ is_removed_from_room|yesno:"true,false" }};
+        const initialRoomMessages = {{ initial_room_messages_json|default:"[]" }};
         let historyOffset = 0;
         let isLoadingHistory = false;
         let hasMoreHistory = false;
@@ -627,6 +630,7 @@
         const roomMessageSignatures = new Set();
         const PRECISE_LOCATION_SYNC_KEY = 'codex_precise_location_synced_at';
         const PRECISE_LOCATION_SYNC_TTL = 10 * 60 * 1000;
+        let skipNextSocketHistoryPayload = false;
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = protocol + '//' + window.location.host + '/ws/chat/' + roomName + '/';
@@ -739,6 +743,34 @@
         bindCopyTargets();
         updateRoomConnectionIndicator(false, '连接中...');
 
+        function bootstrapInitialRoomMessages() {
+            if (!Array.isArray(initialRoomMessages) || !initialRoomMessages.length) {
+                hasInitialHistoryLoaded = true;
+                updateHistoryLoadIndicator();
+                return;
+            }
+
+            initialRoomMessages.slice().reverse().forEach((message) => {
+                appendMessage(message);
+            });
+
+            historyOffset = initialRoomMessages.length;
+            hasMoreHistory = initialRoomMessages.length >= 50;
+            hasInitialHistoryLoaded = true;
+            skipNextSocketHistoryPayload = true;
+            updateHistoryLoadIndicator();
+
+            requestAnimationFrame(() => {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                const latestMessageElement = Array.from(messagesDiv.querySelectorAll('.message'))
+                    .reverse()
+                    .find((item) => !item.classList.contains('system') && !item.classList.contains('kick') && !item.classList.contains('delete-room'));
+                syncParentThreadStatusFromElement(latestMessageElement);
+            });
+        }
+
+        bootstrapInitialRoomMessages();
+
         function formatAttachmentSize(size) {
             const normalized = Number(size || 0);
             if (!normalized) return '';
@@ -774,8 +806,32 @@
                 statusDot.classList.toggle('connected', !!connected);
             }
             if (roomStatusText) {
-                roomStatusText.textContent = label || (connected ? '已连接' : '连接中...');
+                roomStatusText.textContent = label || (connected ? '已就绪' : '后台连接中...');
             }
+        }
+
+        function updateHistoryLoadIndicator() {
+            if (!historyLoadIndicator) return;
+            if (isLoadingHistory) {
+                historyLoadIndicator.hidden = false;
+                historyLoadIndicator.dataset.state = 'loading';
+                historyLoadIndicator.textContent = '正在加载历史消息...';
+                return;
+            }
+            if (hasMoreHistory) {
+                historyLoadIndicator.hidden = false;
+                historyLoadIndicator.dataset.state = messagesDiv.scrollTop < 50 ? 'pulling' : 'idle';
+                historyLoadIndicator.textContent = messagesDiv.scrollTop < 50 ? '松手继续加载更早消息' : '上滑加载更早消息';
+                return;
+            }
+            if (hasInitialHistoryLoaded) {
+                historyLoadIndicator.hidden = false;
+                historyLoadIndicator.dataset.state = 'done';
+                historyLoadIndicator.textContent = '已显示全部历史消息';
+                return;
+            }
+            historyLoadIndicator.dataset.state = '';
+            historyLoadIndicator.hidden = true;
         }
 
         function applyAttachmentDisplayNames(root = document) {
@@ -2225,6 +2281,13 @@
         }
 
         function handleHistory(data) {
+            if (skipNextSocketHistoryPayload) {
+                skipNextSocketHistoryPayload = false;
+                hasMoreHistory = data.has_more;
+                updateHistoryLoadIndicator();
+                return;
+            }
+
             const messages = data.messages || [];
 
             if (messages.length > 0) {
@@ -2248,12 +2311,14 @@
                 }
             }
             hasInitialHistoryLoaded = true;
+            updateHistoryLoadIndicator();
         }
 
         function loadMoreHistory() {
             if (isLoadingHistory || !hasMoreHistory) return;
 
             isLoadingHistory = true;
+            updateHistoryLoadIndicator();
 
             chatSocket.send(JSON.stringify({
                 'type': 'load_more_history',
@@ -2262,6 +2327,7 @@
 
             setTimeout(() => {
                 isLoadingHistory = false;
+                updateHistoryLoadIndicator();
             }, 1000);
         }
 
@@ -2511,6 +2577,7 @@
         });
 
         messagesDiv.addEventListener('scroll', function() {
+            updateHistoryLoadIndicator();
             if (messagesDiv.scrollTop < 50 && hasMoreHistory && !isLoadingHistory) {
                 loadMoreHistory();
             }

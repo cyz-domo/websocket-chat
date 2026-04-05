@@ -663,6 +663,32 @@ def build_history_entry(item, text_attr):
     }
 
 
+def serialize_room_message_for_template(item):
+    profile = getattr(getattr(item, 'user', None), 'chat_profile', None)
+    display_name = profile.get_display_name() if profile else (getattr(item, 'username', '') or '用户')
+    public_id = profile.public_id if profile else ''
+    avatar_label = profile.get_avatar_label() if profile else (getattr(item, 'username', '')[:2] or '用户')
+    avatar_url = profile.avatar_url if profile else ''
+    friend_id = profile.friend_id if profile else ''
+    appearance = profile.to_payload() if profile else {}
+
+    return {
+        'id': item.id,
+        'message': item.message,
+        'user': item.username,
+        'public_id': public_id,
+        'display_name': display_name,
+        'type': item.message_type,
+        'timestamp': item.timestamp.isoformat() if item.timestamp else None,
+        'location': item.location_label,
+        'appearance': appearance,
+        'avatar_label': avatar_label,
+        'avatar_url': avatar_url,
+        'friend_id': friend_id,
+        'attachment': build_attachment_payload(item),
+    }
+
+
 def serialize_user_emoji(item):
     return {
         'id': item.id,
@@ -1490,10 +1516,11 @@ def room(request, room_name):
     chat_profile = get_or_create_chat_profile(request.user)
     room_membership = room_membership or get_room_membership(room, request.user)
     room_member_records = build_room_member_records(room, request.user)
-    visible_room_messages = room.messages.select_related('user', 'user__chat_profile').order_by('-timestamp')[:30]
+    visible_room_messages = list(room.messages.select_related('user', 'user__chat_profile').order_by('-timestamp')[:50])
     room_history_info = [build_history_entry(item, 'message') for item in visible_room_messages]
     room_history_images = [entry for entry in room_history_info if entry['attachment'] and entry['attachment']['kind'] == 'image']
     room_history_files = [entry for entry in room_history_info if entry['attachment'] and entry['attachment']['kind'] == 'file']
+    initial_room_messages = [serialize_room_message_for_template(item) for item in visible_room_messages]
     visit_state = get_or_create_room_visit_state(request.user, room)
     visit_state.last_read_at = timezone.now()
     visit_state.save(update_fields=['last_read_at'])
@@ -1526,6 +1553,7 @@ def room(request, room_name):
         'chat_style_choices': CHAT_BUBBLE_STYLES.items(),
         'inviteable_friends': inviteable_friends,
         'room_history_info': room_history_info,
+        'initial_room_messages_json': mark_safe(json.dumps(initial_room_messages)),
         'room_history_images': room_history_images,
         'room_history_files': room_history_files,
         'room_history_browser_json': mark_safe(json.dumps(
