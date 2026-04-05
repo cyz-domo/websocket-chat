@@ -1,12 +1,7 @@
 from django.contrib.auth.models import User
-from django.db import transaction
-from django.db.models.signals import post_migrate, post_save
+from django.db.models.signals import post_migrate
 from django.db.utils import OperationalError, ProgrammingError
 from django.dispatch import receiver
-
-from .models import DirectMessage, Message
-from .services import PushNotificationService
-
 
 DEFAULT_ADMIN_USERNAME = 'xyadmin'
 DEFAULT_ADMIN_PASSWORD = 'xyadmin123'
@@ -45,19 +40,3 @@ def ensure_default_admin(sender, **kwargs):
 
     if needs_save:
         admin_user.save()
-
-
-@receiver(post_save, sender=Message)
-def send_room_push_notification(sender, instance, created, **kwargs):
-    if not created:
-        return
-
-    transaction.on_commit(lambda: PushNotificationService().notify_room_message(instance))
-
-
-@receiver(post_save, sender=DirectMessage)
-def send_direct_push_notification(sender, instance, created, **kwargs):
-    if not created:
-        return
-
-    transaction.on_commit(lambda: PushNotificationService().notify_direct_message(instance))

@@ -67,10 +67,6 @@ REVERSE_GEOCODE_URL = os.getenv('REVERSE_GEOCODE_URL', 'https://nominatim.openst
 BIGDATA_REVERSE_URL = os.getenv('BIGDATA_REVERSE_URL', 'https://api.bigdatacloud.net/data/reverse-geocode-client')
 GEOCODE_USER_AGENT = os.getenv('GEOCODE_USER_AGENT', 'websocket-chat/1.0 (location reverse geocoding)')
 REDIS_URL = os.getenv('REDIS_URL', '').strip()
-MOBILE_PUSH_NOTIFICATIONS_ENABLED = get_env_bool('MOBILE_PUSH_NOTIFICATIONS_ENABLED', True)
-PUSH_NOTIFY_ONLINE_USERS = get_env_bool('PUSH_NOTIFY_ONLINE_USERS', False)
-FIREBASE_CREDENTIALS_FILE = os.getenv('FIREBASE_CREDENTIALS_FILE', '').strip()
-FIREBASE_PROJECT_ID = os.getenv('FIREBASE_PROJECT_ID', '').strip()
 
 DEFAULT_CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.app',
@@ -106,7 +102,6 @@ MIDDLEWARE = [
     'chat.origin_middleware.DynamicOriginSettingsMiddleware',
     'chat.origin_middleware.DynamicCorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'chat.middleware.InjectMobileBridgeMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

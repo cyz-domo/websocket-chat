@@ -1,7 +1,6 @@
 import json
 import hashlib
 import io
-import logging
 import mimetypes
 import os
 import re
@@ -26,7 +25,6 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import password_validators_help_text_html
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from django.utils.safestring import mark_safe
@@ -56,7 +54,6 @@ from .models import (
     FriendRequest,
     Friendship,
     Message,
-    MobileDevice,
     Room,
     RoomInvitation,
     RoomJoinRequest,
@@ -70,8 +67,6 @@ from .models import (
 )
 from .presets import CHAT_BUBBLE_STYLES, CHAT_COLOR_THEMES, DEFAULT_CHAT_STYLE, DEFAULT_CHAT_THEME
 from .services.geoip_service import GeoIPService
-
-logger = logging.getLogger(__name__)
 
 
 DEFAULT_ROOM_AVATARS = ['💬', '🐱', '🐶', '🐻', '🎮', '📚', '☕', '🌙', '🎵', '🍀']
@@ -1834,97 +1829,6 @@ def mark_direct_read(request, public_id):
     state.deleted_at = None
     state.last_read_at = timezone.now()
     state.save(update_fields=['deleted_at', 'last_read_at'])
-    return JsonResponse({'ok': True})
-
-
-@login_required
-@require_POST
-def register_mobile_device(request):
-    payload = get_json_request_data(request)
-    if payload is None:
-        logger.warning('Mobile device registration failed: invalid JSON payload for user %s', request.user.id)
-        return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
-
-    token = (payload.get('token') or '').strip()
-    platform = (payload.get('platform') or MobileDevice.PLATFORM_ANDROID).strip().lower()
-    device_id = (payload.get('device_id') or '').strip()
-    device_name = (payload.get('device_name') or '').strip()
-    app_version = (payload.get('app_version') or '').strip()
-
-    if not token:
-        logger.warning('Mobile device registration failed: missing token for user %s', request.user.id)
-        return JsonResponse({'ok': False, 'error': 'missing_token'}, status=400)
-    if platform not in {choice[0] for choice in MobileDevice.PLATFORM_CHOICES}:
-        logger.warning('Mobile device registration failed: invalid platform %s for user %s', platform, request.user.id)
-        return JsonResponse({'ok': False, 'error': 'invalid_platform'}, status=400)
-
-    device, _ = MobileDevice.objects.update_or_create(
-        token=token,
-        defaults={
-            'user': request.user,
-            'platform': platform,
-            'device_id': device_id[:128],
-            'device_name': device_name[:120],
-            'app_version': app_version[:40],
-            'notifications_enabled': True,
-        },
-    )
-    logger.info(
-        'Registered mobile device %s for user %s on platform %s',
-        device.id,
-        request.user.id,
-        device.platform,
-    )
-    return JsonResponse({
-        'ok': True,
-        'device': {
-            'id': device.id,
-            'platform': device.platform,
-            'device_name': device.device_name,
-            'app_version': device.app_version,
-            'notifications_enabled': device.notifications_enabled,
-        },
-    })
-
-
-@login_required
-@require_POST
-def unregister_mobile_device(request):
-    payload = get_json_request_data(request)
-    if payload is None:
-        logger.warning('Mobile device unregister failed: invalid JSON payload for user %s', request.user.id)
-        return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
-
-    token = (payload.get('token') or '').strip()
-    if not token:
-        logger.warning('Mobile device unregister failed: missing token for user %s', request.user.id)
-        return JsonResponse({'ok': False, 'error': 'missing_token'}, status=400)
-
-    updated = MobileDevice.objects.filter(user=request.user, token=token).update(notifications_enabled=False)
-    if not updated:
-        logger.warning('Mobile device unregister failed: token not found for user %s', request.user.id)
-        return JsonResponse({'ok': False, 'error': 'device_not_found'}, status=404)
-    logger.info('Disabled mobile device token for user %s', request.user.id)
-    return JsonResponse({'ok': True})
-
-
-@csrf_exempt
-@require_POST
-def mobile_device_debug(request):
-    payload = get_json_request_data(request)
-    if payload is None:
-        return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
-
-    stage = (payload.get('stage') or '').strip()[:64]
-    details = payload.get('details')
-    logger.info(
-        'Mobile push debug stage=%s authenticated=%s user=%s path=%s details=%s',
-        stage or 'unknown',
-        bool(getattr(request, 'user', None) and request.user.is_authenticated),
-        getattr(getattr(request, 'user', None), 'id', None),
-        request.path,
-        details,
-    )
     return JsonResponse({'ok': True})
 
 

@@ -27,10 +27,6 @@ REVERSE_GEOCODE_URL="${REVERSE_GEOCODE_URL:-https://nominatim.openstreetmap.org/
 BIGDATA_REVERSE_URL="${BIGDATA_REVERSE_URL:-https://api.bigdatacloud.net/data/reverse-geocode-client}"
 GEOCODE_USER_AGENT="${GEOCODE_USER_AGENT:-websocket-chat/1.0 (location reverse geocoding)}"
 REDIS_URL="${REDIS_URL:-}"
-MOBILE_PUSH_NOTIFICATIONS_ENABLED="${MOBILE_PUSH_NOTIFICATIONS_ENABLED:-1}"
-PUSH_NOTIFY_ONLINE_USERS="${PUSH_NOTIFY_ONLINE_USERS:-0}"
-FIREBASE_CREDENTIALS_FILE="${FIREBASE_CREDENTIALS_FILE:-}"
-FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-}"
 REQUIREMENTS_STAMP="$PROJECT_DIR/$VENV_PATH/.requirements.installed"
 SELF_SCRIPT="$PROJECT_DIR/scripts/service.sh"
 DB_RUNTIME_CONFIG="${DB_RUNTIME_CONFIG:-$PROJECT_DIR/.runtime-db.env}"
@@ -245,10 +241,6 @@ REVERSE_GEOCODE_URL=$(escape_env_value "$REVERSE_GEOCODE_URL")
 BIGDATA_REVERSE_URL=$(escape_env_value "$BIGDATA_REVERSE_URL")
 GEOCODE_USER_AGENT=$(escape_env_value "$GEOCODE_USER_AGENT")
 REDIS_URL=$(escape_env_value "$REDIS_URL")
-MOBILE_PUSH_NOTIFICATIONS_ENABLED=$(escape_env_value "$MOBILE_PUSH_NOTIFICATIONS_ENABLED")
-PUSH_NOTIFY_ONLINE_USERS=$(escape_env_value "$PUSH_NOTIFY_ONLINE_USERS")
-FIREBASE_CREDENTIALS_FILE=$(escape_env_value "$FIREBASE_CREDENTIALS_FILE")
-FIREBASE_PROJECT_ID=$(escape_env_value "$FIREBASE_PROJECT_ID")
 DB_BACKEND=$(escape_env_value "$DB_BACKEND")
 DB_NAME=$(escape_env_value "$DB_NAME")
 DB_USER=$(escape_env_value "$DB_USER")
@@ -341,10 +333,6 @@ AMap key:              ${AMAP_WEB_API_KEY:+configured}
 Reverse geocode URL:   $REVERSE_GEOCODE_URL
 Secondary geocode URL: $BIGDATA_REVERSE_URL
 Redis URL:             ${REDIS_URL:+configured}
-Push enabled:          $MOBILE_PUSH_NOTIFICATIONS_ENABLED
-Push online users:     $PUSH_NOTIFY_ONLINE_USERS
-Firebase credentials:  ${FIREBASE_CREDENTIALS_FILE:-not configured}
-Firebase project id:   ${FIREBASE_PROJECT_ID:-not configured}
 Database backend:      ${DB_BACKEND:-sqlite}
 Database host/name:    ${DB_HOST:-local}/${DB_NAME:-${SQLITE_PATH:-db.sqlite3}}
 Runtime DB config:     $DB_RUNTIME_CONFIG
@@ -388,10 +376,6 @@ Optional environment variables:
   REVERSE_GEOCODE_URL    Default: https://nominatim.openstreetmap.org/reverse
   BIGDATA_REVERSE_URL    Default: https://api.bigdatacloud.net/data/reverse-geocode-client
   REDIS_URL              Optional: Redis 连接串
-  MOBILE_PUSH_NOTIFICATIONS_ENABLED  Default: 1
-  PUSH_NOTIFY_ONLINE_USERS           Default: 0
-  FIREBASE_CREDENTIALS_FILE          Optional: Firebase service account JSON 路径
-  FIREBASE_PROJECT_ID                Optional: Firebase project id
   DB_RUNTIME_CONFIG      Default: .runtime-db.env in project root
 EOF
 }
