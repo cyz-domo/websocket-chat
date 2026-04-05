@@ -7019,7 +7019,11 @@ code {
         display: none;
     }
 
-    .notifications-page .topbar {
+    .moments-page .topbar,
+    .notifications-page .topbar,
+    .create-moment-page .topbar,
+    .inbox-page .topbar,
+    .profile-page .topbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -7027,25 +7031,56 @@ code {
         gap: 10px;
     }
 
-    .notifications-page .topbar .topbar-group {
+    .moments-page .topbar .topbar-group,
+    .notifications-page .topbar .topbar-group,
+    .create-moment-page .topbar .topbar-group,
+    .inbox-page .topbar .topbar-group,
+    .profile-page .topbar .topbar-group {
         width: auto;
         min-width: 0;
     }
 
-    .notifications-page .topbar .topbar-group:first-child {
+    .moments-page .topbar .topbar-group:first-child,
+    .notifications-page .topbar .topbar-group:first-child,
+    .create-moment-page .topbar .topbar-group:first-child,
+    .inbox-page .topbar .topbar-group:first-child,
+    .profile-page .topbar .topbar-group:first-child {
         display: flex;
         flex: 1 1 auto;
         align-items: center;
         gap: 8px;
     }
 
-    .notifications-page .topbar .topbar-group:last-child {
+    .moments-page .topbar .topbar-group:last-child,
+    .notifications-page .topbar .topbar-group:last-child,
+    .create-moment-page .topbar .topbar-group:last-child,
+    .profile-page .topbar .topbar-group:last-child {
         display: flex;
         margin-left: auto;
         align-items: center;
         gap: 6px;
     }
 
+    .moments-page .topbar .brand-title,
+    .notifications-page .topbar .brand-title,
+    .create-moment-page .topbar .brand-title,
+    .inbox-page .topbar .brand-title,
+    .profile-page .topbar .brand-title {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .moments-page .topbar .brand-title strong,
+    .notifications-page .topbar .brand-title strong,
+    .create-moment-page .topbar .brand-title strong,
+    .inbox-page .topbar .brand-title strong,
+    .profile-page .topbar .brand-title strong {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .moments-page .topbar .btn:not(.back-link),
     .notifications-page .topbar .btn:not(.back-link) {
         width: 40px;
         min-width: 40px;
@@ -7054,69 +7089,34 @@ code {
         font-size: 13px;
     }
 
-    .moments-page .topbar {
+    .inbox-page .topbar .topbar-actions {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px;
-        gap: 10px;
-    }
-
-    .moments-page .topbar .topbar-group {
-        width: auto;
-        min-width: 0;
-    }
-
-    .moments-page .topbar .topbar-group:first-child {
-        display: flex;
-        flex: 1 1 auto;
         align-items: center;
         gap: 8px;
-    }
-
-    .moments-page .topbar .topbar-group:last-child {
-        display: flex;
         margin-left: auto;
-        align-items: center;
-        gap: 6px;
     }
 
-    .moments-page .topbar .btn:not(.back-link) {
+    .inbox-page .topbar .pill {
+        display: none;
+    }
+
+    .inbox-page .topbar .settings-trigger {
         width: 40px;
         min-width: 40px;
-        min-height: 40px;
-        padding: 0;
-        font-size: 13px;
-    }
-
-    .profile-page .topbar {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 10px;
-        padding: 12px;
-    }
-
-    .profile-page .topbar .topbar-group {
-        width: 100%;
-    }
-
-    .profile-page .topbar .topbar-group:first-child {
-        display: grid;
-        grid-template-columns: 42px minmax(0, 1fr);
-        align-items: center;
-        gap: 8px;
+        height: 40px;
     }
 
     .profile-page .topbar .topbar-group:last-child {
-        margin-left: 0;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 40px;
-        align-items: center;
-        gap: 8px;
+        display: flex;
+        justify-content: flex-end;
     }
 
-    .profile-page .topbar .brand-title strong {
+    .profile-page .topbar .brand-title {
         font-size: 1rem;
+    }
+
+    .profile-page .topbar .user-chip {
+        display: none;
     }
 
     .profile-page .topbar .user-chip {
@@ -8372,48 +8372,72 @@ code {
 @media (max-width: 720px) {
     .moments-page .topbar .topbar-btn-label,
     .notifications-page .topbar .topbar-btn-label,
+    .create-moment-page .topbar .topbar-btn-label,
     .profile-page .topbar .topbar-btn-label {
         display: none;
     }
 
-    .notifications-page .topbar {
+    .moments-page .topbar,
+    .notifications-page .topbar,
+    .create-moment-page .topbar,
+    .inbox-page .topbar,
+    .profile-page .topbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
     }
 
-    .notifications-page .topbar .topbar-group {
+    .moments-page .topbar .topbar-group,
+    .notifications-page .topbar .topbar-group,
+    .create-moment-page .topbar .topbar-group,
+    .inbox-page .topbar .topbar-group,
+    .profile-page .topbar .topbar-group {
         width: auto;
         min-width: 0;
     }
 
-    .notifications-page .topbar .topbar-group:first-child {
+    .moments-page .topbar .topbar-group:first-child,
+    .notifications-page .topbar .topbar-group:first-child,
+    .create-moment-page .topbar .topbar-group:first-child,
+    .inbox-page .topbar .topbar-group:first-child,
+    .profile-page .topbar .topbar-group:first-child {
         display: flex;
         flex: 1 1 auto;
         align-items: center;
         gap: 10px;
     }
 
-    .notifications-page .topbar .topbar-group:last-child {
+    .moments-page .topbar .topbar-group:last-child,
+    .notifications-page .topbar .topbar-group:last-child,
+    .create-moment-page .topbar .topbar-group:last-child,
+    .profile-page .topbar .topbar-group:last-child {
         margin-left: auto;
         display: flex;
         align-items: center;
         gap: 8px;
     }
 
-    .notifications-page .topbar .brand-title {
+    .moments-page .topbar .brand-title,
+    .notifications-page .topbar .brand-title,
+    .create-moment-page .topbar .brand-title,
+    .inbox-page .topbar .brand-title,
+    .profile-page .topbar .brand-title {
         min-width: 0;
         flex: 1 1 auto;
     }
 
-    .notifications-page .topbar .brand-title strong {
-        max-width: none;
+    .moments-page .topbar .brand-title strong,
+    .notifications-page .topbar .brand-title strong,
+    .create-moment-page .topbar .brand-title strong,
+    .inbox-page .topbar .brand-title strong,
+    .profile-page .topbar .brand-title strong {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
+    .moments-page .topbar .btn:not(.back-link),
     .notifications-page .topbar .btn:not(.back-link) {
         width: 44px;
         min-width: 44px;
@@ -8422,54 +8446,25 @@ code {
         border-radius: 14px;
     }
 
-    .notifications-page .topbar .settings-trigger {
-        justify-self: end;
-    }
-
-    .moments-page .topbar {
+    .inbox-page .topbar .topbar-actions {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-    }
-
-    .moments-page .topbar .topbar-group {
-        width: auto;
-        min-width: 0;
-    }
-
-    .moments-page .topbar .topbar-group:first-child {
-        display: flex;
-        flex: 1 1 auto;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .moments-page .topbar .topbar-group:last-child {
         margin-left: auto;
-        display: flex;
-        align-items: center;
         gap: 8px;
     }
 
-    .moments-page .topbar .brand-title {
-        min-width: 0;
-        flex: 1 1 auto;
+    .inbox-page .topbar .pill {
+        display: none;
     }
 
-    .moments-page .topbar .brand-title strong {
-        max-width: none;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .inbox-page .topbar .settings-trigger {
+        width: 42px;
+        min-width: 42px;
+        height: 42px;
     }
 
-    .moments-page .topbar .btn:not(.back-link) {
-        width: 44px;
-        min-width: 44px;
-        justify-content: center;
-        padding: 0;
-        border-radius: 14px;
+    .notifications-page .topbar .settings-trigger {
+        justify-self: end;
     }
 
     .moments-page .topbar .settings-trigger {
@@ -8487,30 +8482,13 @@ code {
         right: -2px;
     }
 
-    .profile-page .topbar {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        align-items: stretch;
-        gap: 12px;
-    }
-
-    .profile-page .topbar .topbar-group {
-        width: 100%;
-    }
-
-    .profile-page .topbar .topbar-group:first-child {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        align-items: center;
-        gap: 10px;
-    }
-
     .profile-page .topbar .topbar-group:last-child {
-        margin-left: 0;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 8px;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .profile-page .topbar .user-chip {
+        display: none;
     }
 
     .profile-page .topbar .user-chip {
