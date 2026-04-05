@@ -6,7 +6,7 @@
 <div class="page-heading">
     <span class="section-label">Site Settings</span>
     <h1>站点设置</h1>
-    <p>统一管理 CSRF 受信任来源、跨域响应来源、聊天附件上限和默认管理员信息，避免每次都改代码。</p>
+    <p>统一管理允许访问 Host、CSRF 受信任来源、跨域响应来源、聊天附件上限和默认管理员信息，避免每次都改代码。</p>
 </div>
 
 <div class="admin-sections">
@@ -53,7 +53,7 @@
     </div>
     <div class="section panel-card">
         <h2>当前问题建议</h2>
-        <p>你这次遇到的报错可以直接把 <code>https://chat.6143443.xyz</code> 填进“CSRF 受信任来源”。如果前端和后端分域，还可以同时填进 “CORS 允许来源”。</p>
+        <p>如果日志提示 <code>Invalid HTTP_HOST header</code>，需要把域名本身填进“允许访问 Host”，例如 <code>chat1.ufgc.eu.cc</code>。如果还有跨站提交或跨域请求，再分别补到“CSRF 受信任来源”和 “CORS 允许来源”。</p>
     </div>
 </div>
 {% endblock %}

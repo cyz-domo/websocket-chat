@@ -68,9 +68,18 @@ class RegistrationForm(UserCreationForm):
 class SiteConfigurationForm(forms.ModelForm):
     class Meta:
         model = SiteConfiguration
-        fields = ('site_title', 'site_favicon', 'trusted_origins', 'cors_allowed_origins', 'allow_all_cors', 'chat_attachment_max_mb')
+        fields = (
+            'site_title',
+            'site_favicon',
+            'allowed_hosts',
+            'trusted_origins',
+            'cors_allowed_origins',
+            'allow_all_cors',
+            'chat_attachment_max_mb',
+        )
         widgets = {
             'site_title': forms.TextInput(attrs={'placeholder': '例如：animal chat'}),
+            'allowed_hosts': forms.Textarea(attrs={'rows': 5, 'placeholder': '每行一个 Host，例如：chat.example.com 或 .example.com'}),
             'trusted_origins': forms.Textarea(attrs={'rows': 6, 'placeholder': '每行一个来源，例如：https://chat.6143443.xyz'}),
             'cors_allowed_origins': forms.Textarea(attrs={'rows': 6, 'placeholder': '每行一个来源，例如：https://app.example.com'}),
             'chat_attachment_max_mb': forms.NumberInput(attrs={'min': 1, 'max': 1024, 'step': 1}),
@@ -78,6 +87,7 @@ class SiteConfigurationForm(forms.ModelForm):
         labels = {
             'site_title': '网页标题',
             'site_favicon': '网页图标',
+            'allowed_hosts': '允许访问 Host',
             'trusted_origins': 'CSRF 受信任来源',
             'cors_allowed_origins': 'CORS 允许来源',
             'allow_all_cors': '允许所有跨域来源',
@@ -86,11 +96,26 @@ class SiteConfigurationForm(forms.ModelForm):
         help_texts = {
             'site_title': '浏览器标签页显示的标题，留空时默认使用 animal chat。',
             'site_favicon': '支持 PNG、JPG、ICO、WebP。上传后会显示在浏览器标签页。',
+            'allowed_hosts': '用于 Django 的 ALLOWED_HOSTS 校验。每行一个 Host，不带协议头，例如 chat.example.com、127.0.0.1 或 .example.com。',
             'trusted_origins': '用于 Django 的 CSRF Origin 校验。需要带协议头，例如 https://example.com',
             'cors_allowed_origins': '用于响应头 Access-Control-Allow-Origin。需要带协议头，例如 https://example.com',
             'allow_all_cors': '开发调试时可以开启；生产环境建议关闭并只填写明确来源。',
             'chat_attachment_max_mb': '上传图片和文件时允许的单文件最大体积，修改后新请求立即按这个值校验。',
         }
+
+    def clean_allowed_hosts(self):
+        raw_value = self.cleaned_data.get('allowed_hosts', '')
+        hosts = SiteConfiguration.parse_origin_lines(raw_value)
+        for host in hosts:
+            if '://' in host:
+                raise forms.ValidationError('Host 不能包含 http:// 或 https:// 协议头')
+            if '/' in host or '\\' in host:
+                raise forms.ValidationError('Host 不能包含路径')
+            if ':' in host and host.count(':') == 1:
+                raise forms.ValidationError('Host 不需要带端口，例如直接填写 chat.example.com')
+            if host == '*':
+                raise forms.ValidationError('请填写明确的 Host，避免使用 *')
+        return '\n'.join(hosts)
 
     def clean_trusted_origins(self):
         return self._clean_origin_block('trusted_origins')

@@ -1,13 +1,17 @@
 import io
 import asyncio
+<<<<<<< Updated upstream
 import json
+=======
+from unittest.mock import patch
+>>>>>>> Stashed changes
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from PIL import Image
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from .consumers import ChatConsumer
 from .models import (
@@ -22,17 +26,20 @@ from .models import (
     RoomJoinRequest,
     RoomMembership,
     UserChatProfile,
+    SiteConfiguration,
     UsernameAlias,
     UserLocation,
     UserSession,
 )
 from .services import ChinaAddressNormalizer, ChinaDivisionRepository, GlobalReverseGeocodeService, UserLocationService
+from .origin_middleware import DynamicOriginSettingsMiddleware
 
 
 class ChatAppearanceTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='alice', password='secret123')
         self.room = Room.objects.create(name='test-room', created_by=self.user)
+        self.factory = RequestFactory()
 
     def login_with_valid_session(self):
         self.client.force_login(self.user)
@@ -179,6 +186,44 @@ class ChatAppearanceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         messages_list = list(response.context['messages'])
         self.assertTrue(any('8 到 11 位' in str(message) for message in messages_list))
+
+    def test_site_settings_can_update_allowed_hosts(self):
+        self.login_with_valid_session()
+        self.user.is_staff = True
+        self.user.is_superuser = True
+        self.user.save(update_fields=['is_staff', 'is_superuser'])
+
+        response = self.client.post(
+            reverse('admin_site_settings'),
+            {
+                'site_title': 'animal chat',
+                'allowed_hosts': 'chat1.ufgc.eu.cc\nchat.example.com',
+                'trusted_origins': 'https://chat1.ufgc.eu.cc',
+                'cors_allowed_origins': 'https://chat1.ufgc.eu.cc',
+                'chat_attachment_max_mb': 50,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        site_config = SiteConfiguration.get_solo()
+        self.assertEqual(site_config.allowed_hosts, 'chat1.ufgc.eu.cc\nchat.example.com')
+
+    @patch('chat.origin_middleware.settings.DEFAULT_ALLOWED_HOSTS', ['localhost', '127.0.0.1'])
+    @patch('chat.origin_middleware.settings.DEFAULT_CSRF_TRUSTED_ORIGINS', [])
+    @patch('chat.origin_middleware.settings.DEFAULT_CORS_ALLOWED_ORIGINS', [])
+    def test_dynamic_origin_middleware_merges_allowed_hosts(self):
+        SiteConfiguration.get_solo()
+        SiteConfiguration.objects.update(
+            allowed_hosts='chat1.ufgc.eu.cc\n.example.com'
+        )
+
+        middleware = DynamicOriginSettingsMiddleware(lambda request: None)
+        middleware(self.factory.get('/'))
+
+        from django.conf import settings
+
+        self.assertIn('chat1.ufgc.eu.cc', settings.ALLOWED_HOSTS)
+        self.assertIn('.example.com', settings.ALLOWED_HOSTS)
 
     def test_profile_settings_can_change_username_and_sync_room_history(self):
         self.login_with_valid_session()

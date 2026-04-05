@@ -21,6 +21,7 @@ class DynamicOriginSettingsMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        allowed_hosts = list(getattr(settings, 'DEFAULT_ALLOWED_HOSTS', []))
         trusted_origins = list(getattr(settings, 'DEFAULT_CSRF_TRUSTED_ORIGINS', []))
         cors_allowed_origins = list(getattr(settings, 'DEFAULT_CORS_ALLOWED_ORIGINS', []))
         allow_all_cors = False
@@ -31,6 +32,10 @@ class DynamicOriginSettingsMiddleware:
             config = None
 
         if config:
+            allowed_hosts = _merge_unique(
+                allowed_hosts,
+                SiteConfiguration.parse_origin_lines(config.allowed_hosts),
+            )
             trusted_origins = _merge_unique(
                 trusted_origins,
                 SiteConfiguration.parse_origin_lines(config.trusted_origins),
@@ -41,6 +46,7 @@ class DynamicOriginSettingsMiddleware:
             )
             allow_all_cors = config.allow_all_cors
 
+        settings.ALLOWED_HOSTS = allowed_hosts
         settings.CSRF_TRUSTED_ORIGINS = trusted_origins
         request._dynamic_cors_allowed_origins = cors_allowed_origins
         request._dynamic_allow_all_cors = allow_all_cors

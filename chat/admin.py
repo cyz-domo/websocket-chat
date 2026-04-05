@@ -56,6 +56,7 @@ class RoomInvitationAdmin(admin.ModelAdmin):
 @admin.register(SiteConfiguration)
 class SiteConfigurationAdmin(admin.ModelAdmin):
     list_display = ('id', 'allow_all_cors', 'updated_at')
+    search_fields = ('allowed_hosts', 'trusted_origins', 'cors_allowed_origins')
 
 
 @admin.register(UserLocation)

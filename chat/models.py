@@ -561,6 +561,7 @@ class SiteConfiguration(models.Model):
     """站点运行配置"""
     site_title = models.CharField(max_length=80, blank=True, default='animal chat', verbose_name='网页标题')
     site_favicon = models.ImageField(upload_to='site_assets/', blank=True, null=True, verbose_name='网页图标')
+    allowed_hosts = models.TextField(blank=True, default='', verbose_name='允许访问 Host')
     trusted_origins = models.TextField(blank=True, default='', verbose_name='CSRF 受信任来源')
     cors_allowed_origins = models.TextField(blank=True, default='', verbose_name='CORS 允许来源')
     allow_all_cors = models.BooleanField(default=False, verbose_name='允许全部跨域来源')

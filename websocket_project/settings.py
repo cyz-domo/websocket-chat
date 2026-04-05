@@ -59,7 +59,15 @@ def get_channel_layer_settings():
 SECRET_KEY = 'django-insecure-your-secret-key-here'
 
 DEBUG = False
-ALLOWED_HOSTS = ['*', 'localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok.io', 'chat.6143443.xyz']
+DEFAULT_ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'testserver',
+    '.ngrok-free.app',
+    '.ngrok.io',
+    'chat.6143443.xyz',
+]
+ALLOWED_HOSTS = list(DEFAULT_ALLOWED_HOSTS)
 GEOCODE_PROVIDER = os.getenv('GEOCODE_PROVIDER', 'auto')
 GEOCODE_TIMEOUT = float(os.getenv('GEOCODE_TIMEOUT', '8'))
 AMAP_WEB_API_KEY = os.getenv('AMAP_WEB_API_KEY', '')
