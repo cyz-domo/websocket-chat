@@ -23,7 +23,7 @@ from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import password_validators_help_text_html
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
@@ -64,6 +64,11 @@ from .models import (
     UserChatProfile,
     UsernameAlias,
     UserSession,
+    Moment,
+    MomentComment,
+    MomentImage,
+    MomentVideo,
+    MomentLike,
 )
 from .presets import CHAT_BUBBLE_STYLES, CHAT_COLOR_THEMES, DEFAULT_CHAT_STYLE, DEFAULT_CHAT_THEME
 from .services.geoip_service import GeoIPService
@@ -2372,26 +2377,11 @@ def send_direct_emoji(request, public_id, emoji_id):
 
 @login_required
 def friends_view(request):
-    profile = get_or_create_chat_profile(request.user)
-    friends = Friendship.objects.filter(user=request.user).select_related('friend', 'friend__chat_profile')
-    selected_friend = friends.first()
-    recent_requests = FriendRequest.objects.filter(
-        recipient=request.user,
-    ).exclude(status=FriendRequest.STATUS_PENDING).select_related('sender', 'sender__chat_profile')[:12]
-    pending_count = FriendRequest.objects.filter(
-        recipient=request.user,
-        status=FriendRequest.STATUS_PENDING,
-    ).count()
-    return render(request, 'chat/friends.html', {
-        'chat_profile': profile,
-        'friends': friends,
-        'selected_friend': selected_friend.friend if selected_friend else None,
-        'recent_requests': recent_requests,
-        'pending_friend_requests_count': pending_count,
-    })
+    return redirect('moments')
 
 
 @login_required
+@ensure_csrf_cookie
 def moments_view(request):
     profile = get_or_create_chat_profile(request.user)
     pending_count = FriendRequest.objects.filter(
@@ -3371,3 +3361,212 @@ def admin_site_settings(request):
         'default_admin_username': 'xyadmin',
         'default_admin_password': 'xyadmin123',
     })
+
+
+@login_required
+def moments_view(request):
+    """朋友圈主页"""
+    # 获取当前用户的好友
+    friend_ids = Friendship.objects.filter(user=request.user).values_list('friend_id', flat=True)
+    target_public_id = (request.GET.get('user') or '').strip()
+    target_user = None
+    target_profile = None
+    target_is_friend = False
+    
+    # 获取可见的动态：自己的动态 + 好友的公开/好友可见动态
+    moments = Moment.objects.filter(
+        Q(user=request.user) |
+        Q(user_id__in=friend_ids, visibility__in=[Moment.VISIBILITY_PUBLIC, Moment.VISIBILITY_FRIENDS]) |
+        Q(visibility=Moment.VISIBILITY_PUBLIC)
+    ).select_related('user', 'user__chat_profile').prefetch_related('images', 'videos', 'likes', 'comments', 'comments__user', 'comments__user__chat_profile').order_by('-created_at')
+
+    if target_public_id:
+        try:
+            target_user = resolve_user_by_public_id(target_public_id)
+        except User.DoesNotExist:
+            messages.error(request, '用户不存在')
+            return redirect('moments')
+
+        target_profile = get_or_create_chat_profile(target_user)
+        target_is_friend = Friendship.objects.filter(user=request.user, friend=target_user).exists()
+        user_moments = Moment.objects.filter(user=target_user).select_related('user', 'user__chat_profile').prefetch_related('images', 'videos', 'likes', 'comments', 'comments__user', 'comments__user__chat_profile').order_by('-created_at')
+        visible_moments = []
+        for moment in user_moments:
+            if moment.visibility == Moment.VISIBILITY_PUBLIC:
+                visible_moments.append(moment)
+            elif moment.visibility == Moment.VISIBILITY_FRIENDS and (target_user == request.user or target_is_friend):
+                visible_moments.append(moment)
+            elif moment.visibility == Moment.VISIBILITY_PRIVATE and target_user == request.user:
+                visible_moments.append(moment)
+        moments = visible_moments
+    
+    return render(request, 'chat/moments.html', {
+        'moments': moments,
+        'friends_count': friend_ids.count(),
+        'target_user': target_user,
+        'target_profile': target_profile,
+        'target_is_friend': target_is_friend,
+    })
+
+
+@login_required
+def create_moment(request):
+    """发布朋友圈动态"""
+    if request.method == 'POST':
+        content = request.POST.get('content', '').strip()
+        visibility = request.POST.get('visibility', Moment.VISIBILITY_FRIENDS).strip()
+        location = request.POST.get('location', '').strip()
+        
+        if visibility not in dict(Moment.VISIBILITY_CHOICES):
+            visibility = Moment.VISIBILITY_FRIENDS
+        
+        # 创建动态
+        moment = Moment.objects.create(
+            user=request.user,
+            content=content,
+            visibility=visibility,
+            location=location,
+        )
+        
+        # 处理图片上传
+        images = request.FILES.getlist('images')
+        for i, image_file in enumerate(images):
+            try:
+                optimized_image = optimize_chat_image_upload(image_file, f'moment_{moment.id}_{i}')
+                moment_image = MomentImage(
+                    moment=moment,
+                    order=i,
+                )
+                moment_image.image.save(optimized_image.name, optimized_image, save=False)
+                moment_image.save()
+            except ValueError:
+                pass
+        
+        # 处理视频上传
+        videos = request.FILES.getlist('videos')
+        for video_file in videos:
+            try:
+                video_data = prepare_chat_attachment(video_file, f'moment_{moment.id}')
+                moment_video = MomentVideo(
+                    moment=moment,
+                )
+                moment_video.video.save(video_data['file'].name, video_data['file'], save=False)
+                # 尝试生成视频缩略图
+                thumbnail = try_generate_video_thumbnail(moment_video.video, f'moment_{moment.id}')
+                if thumbnail:
+                    moment_video.thumbnail.save(thumbnail.name, thumbnail, save=False)
+                moment_video.save()
+            except ValueError:
+                pass
+        
+        messages.success(request, '动态发布成功')
+        return redirect('moments')
+    
+    return render(request, 'chat/create_moment.html')
+
+
+def _can_manage_moment(request, moment):
+    if request.user.is_superuser:
+        return True
+    return moment.user_id == request.user.id
+
+
+@login_required
+@require_POST
+def delete_moment(request, moment_id):
+    try:
+        moment = Moment.objects.get(id=moment_id)
+    except Moment.DoesNotExist:
+        messages.error(request, '动态不存在')
+        return redirect('moments')
+
+    if not _can_manage_moment(request, moment):
+        messages.error(request, '你没有权限删除这条动态')
+        return redirect('moments')
+
+    moment.delete()
+    messages.success(request, '动态已删除')
+    return redirect(request.POST.get('next') or reverse('moments'))
+
+
+@login_required
+@require_POST
+def update_moment_visibility(request, moment_id):
+    try:
+        moment = Moment.objects.get(id=moment_id)
+    except Moment.DoesNotExist:
+        messages.error(request, '动态不存在')
+        return redirect('moments')
+
+    if not _can_manage_moment(request, moment):
+        messages.error(request, '你没有权限修改这条动态')
+        return redirect('moments')
+
+    visibility = (request.POST.get('visibility') or '').strip()
+    if visibility not in dict(Moment.VISIBILITY_CHOICES):
+        messages.error(request, '可见范围不合法')
+        return redirect(request.POST.get('next') or reverse('moments'))
+
+    moment.visibility = visibility
+    moment.save(update_fields=['visibility'])
+    messages.success(request, '可见范围已更新')
+    return redirect(request.POST.get('next') or reverse('moments'))
+
+
+@login_required
+@require_POST
+def like_moment(request, moment_id):
+    """点赞动态"""
+    try:
+        moment = Moment.objects.get(id=moment_id)
+        # 检查是否已经点赞
+        like, created = MomentLike.objects.get_or_create(moment=moment, user=request.user)
+        if not created:
+            # 取消点赞
+            like.delete()
+        likes_count = MomentLike.objects.filter(moment=moment).count()
+        return JsonResponse({'status': 'ok', 'liked': created, 'likes_count': likes_count})
+    except Moment.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': '动态不存在'})
+
+
+@login_required
+@require_POST
+def comment_moment(request, moment_id):
+    """评论动态"""
+    try:
+        moment = Moment.objects.get(id=moment_id)
+        content = request.POST.get('content', '').strip()
+        if not content:
+            return JsonResponse({'status': 'error', 'message': '评论内容不能为空'})
+        
+        comment = MomentComment.objects.create(
+            moment=moment,
+            user=request.user,
+            content=content,
+        )
+        
+        # 序列化评论数据
+        profile = get_or_create_chat_profile(request.user)
+        comment_data = {
+            'id': comment.id,
+            'content': comment.content,
+            'created_at': comment.created_at.isoformat(),
+            'user': {
+                'username': request.user.username,
+                'display_name': profile.get_display_name(),
+                'avatar_label': profile.get_avatar_label(),
+                'avatar_url': profile.avatar_url,
+            }
+        }
+        
+        comments_count = MomentComment.objects.filter(moment=moment).count()
+        return JsonResponse({'status': 'ok', 'comment': comment_data, 'comments_count': comments_count})
+    except Moment.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': '动态不存在'})
+
+
+@login_required
+def user_moments(request, public_id):
+    """查看用户个人朋友圈"""
+    return redirect(f"{reverse('moments')}?user={quote(public_id)}")

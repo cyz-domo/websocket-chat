@@ -1,0 +1,282 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ profile.get_display_name }}的朋友圈 - {{ site_title }}</title>
+    {% if site_favicon_url %}<link rel="icon" href="{{ site_favicon_url }}">{% endif %}
+    <link rel="stylesheet" href="{% static 'chat-ui.css' %}">
+</head>
+<body class="lobby-page app-hub-page">
+    <header class="topbar panel-card">
+        <div class="topbar-group">
+            <a href="{% url 'moments' %}" class="btn btn-secondary back-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                返回朋友圈
+            </a>
+            <div class="brand-title">
+                <strong>{{ profile.get_display_name }}的朋友圈</strong>
+                <span>查看好友的精彩瞬间</span>
+            </div>
+        </div>
+        <div class="topbar-group">
+            <a href="{% url 'profile_settings' %}?next={{ request.get_full_path|urlencode }}" class="settings-trigger settings-link" aria-label="个人设置">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 3l1.6 2.76 3.12.68-.9 3.07 2.18 2.32-2.18 2.32.9 3.07-3.12.68L12 21l-1.6-2.76-3.12-.68.9-3.07L6 12.17l2.18-2.32-.9-3.07 3.12-.68L12 3z"/>
+                    <circle cx="12" cy="12" r="3.2"/>
+                </svg>
+            </a>
+        </div>
+    </header>
+
+    <main class="social-layout">
+        {% include 'chat/_module_rail.html' with active_section='moments' include_lobby_entry=True use_buttons=False %}
+
+        <section class="content-card panel-card">
+            <div class="user-profile-header">
+                <div class="user-avatar">
+                    {% if profile.avatar_url %}
+                        <img src="{{ profile.avatar_url }}" alt="{{ profile.get_display_name }} 的头像">
+                    {% else %}
+                        <span class="avatar-label">{{ profile.get_avatar_label }}</span>
+                    {% endif %}
+                </div>
+                <div class="user-info">
+                    <h2>{{ profile.get_display_name }}</h2>
+                    <p class="user-username">@{{ target_user.username }}</p>
+                    {% if is_friend %}
+                        <span class="friend-badge">好友</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if moments %}
+                <div class="moments-list">
+                    {% for moment in moments %}
+                        <div class="moment-card">
+                            <div class="moment-header">
+                                <div class="moment-avatar">
+                                    {% if moment.user.chat_profile.avatar_url %}
+                                        <img src="{{ moment.user.chat_profile.avatar_url }}" alt="{{ moment.user.chat_profile.get_display_name }} 的头像">
+                                    {% else %}
+                                        <span class="avatar-label">{{ moment.user.chat_profile.get_avatar_label }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="moment-user-info">
+                                    <span class="moment-username">{{ moment.user.chat_profile.get_display_name }}</span>
+                                    <div class="moment-time">
+                                        {{ moment.created_at|date:"Y-m-d H:i" }}
+                                        {% if moment.location %}
+                                            <span class="moment-location">· {{ moment.location }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="moment-visibility">
+                                    {% if moment.visibility == 'public' %}
+                                        <span class="visibility-icon public" title="公开">🌍</span>
+                                    {% elif moment.visibility == 'friends' %}
+                                        <span class="visibility-icon friends" title="仅好友可见">👥</span>
+                                    {% else %}
+                                        <span class="visibility-icon private" title="仅自己可见">🔒</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if moment.content %}
+                                <div class="moment-content">
+                                    {{ moment.content }}
+                                </div>
+                            {% endif %}
+                            
+                            {% if moment.images.exists %}
+                                <div class="moment-images">
+                                    {% for image in moment.images.all %}
+                                        <div class="moment-image-item">
+                                            <img src="{{ image.image.url }}" alt="动态图片">
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            
+                            {% if moment.videos.exists %}
+                                <div class="moment-videos">
+                                    {% for video in moment.videos.all %}
+                                        <div class="moment-video-item">
+                                            {% if video.thumbnail %}
+                                                <img src="{{ video.thumbnail.url }}" alt="视频缩略图" class="video-thumbnail">
+                                                <div class="video-play-icon">▶</div>
+                                            {% endif %}
+                                            <video controls src="{{ video.video.url }}" alt="动态视频"></video>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            
+                            <div class="moment-actions">
+                                <button class="moment-action-btn like-btn" data-moment-id="{{ moment.id }}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                                    </svg>
+                                    <span class="action-text">
+                                        {% if request.user in moment.likes.all %}
+                                            已赞
+                                        {% else %}
+                                            点赞
+                                        {% endif %}
+                                    </span>
+                                    <span class="action-count">{{ moment.likes.count }}</span>
+                                </button>
+                                <button class="moment-action-btn comment-btn" data-moment-id="{{ moment.id }}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                                    </svg>
+                                    <span class="action-text">评论</span>
+                                    <span class="action-count">{{ moment.comments.count }}</span>
+                                </button>
+                            </div>
+                            
+                            <div class="moment-comments" id="comments-{{ moment.id }}">
+                                {% for comment in moment.comments.all %}
+                                    <div class="moment-comment">
+                                        <div class="comment-avatar">
+                                            {% if comment.user.chat_profile.avatar_url %}
+                                                <img src="{{ comment.user.chat_profile.avatar_url }}" alt="{{ comment.user.chat_profile.get_display_name }} 的头像">
+                                            {% else %}
+                                                <span class="avatar-label">{{ comment.user.chat_profile.get_avatar_label }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="comment-content">
+                                            <div class="comment-header">
+                                                <span class="comment-username">{{ comment.user.chat_profile.get_display_name }}</span>
+                                                <span class="comment-time">{{ comment.created_at|date:"H:i" }}</span>
+                                            </div>
+                                            <div class="comment-text">{{ comment.content }}</div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                                <div class="comment-form">
+                                    <input type="text" class="comment-input" placeholder="写下你的评论..." data-moment-id="{{ moment.id }}">
+                                    <button class="comment-submit" data-moment-id="{{ moment.id }}">发送</button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-moments">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <h3>还没有动态</h3>
+                    <p>{{ profile.get_display_name }}还没有发布过动态</p>
+                </div>
+            {% endif %}
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 点赞功能
+            document.querySelectorAll('.like-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const momentId = this.dataset.momentId;
+                    const actionText = this.querySelector('.action-text');
+                    const actionCount = this.querySelector('.action-count');
+                    
+                    fetch(`/moments/${momentId}/like/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            actionText.textContent = data.liked ? '已赞' : '点赞';
+                            actionCount.textContent = data.likes_count;
+                            this.classList.toggle('liked', data.liked);
+                        }
+                    });
+                });
+            });
+            
+            // 评论功能
+            document.querySelectorAll('.comment-submit').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const momentId = this.dataset.momentId;
+                    const input = document.querySelector(`.comment-input[data-moment-id="${momentId}"]`);
+                    const content = input.value.trim();
+                    
+                    if (!content) return;
+                    
+                    fetch(`/moments/${momentId}/comment/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `content=${encodeURIComponent(content)}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            const commentsContainer = document.getElementById(`comments-${momentId}`);
+                            const commentList = commentsContainer.querySelector('.moment-comments-list') || commentsContainer;
+                            
+                            // 创建新评论元素
+                            const commentDiv = document.createElement('div');
+                            commentDiv.className = 'moment-comment';
+                            commentDiv.innerHTML = `
+                                <div class="comment-avatar">
+                                    {% if request.user.chat_profile.avatar_url %}
+                                        <img src="{{ request.user.chat_profile.avatar_url }}" alt="{{ request.user.chat_profile.get_display_name }} 的头像">
+                                    {% else %}
+                                        <span class="avatar-label">{{ request.user.chat_profile.get_avatar_label }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="comment-content">
+                                    <div class="comment-header">
+                                        <span class="comment-username">{{ request.user.chat_profile.get_display_name }}</span>
+                                        <span class="comment-time">${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                    <div class="comment-text">${content}</div>
+                                </div>
+                            `;
+                            
+                            // 插入到评论列表前面
+                            const commentForm = commentsContainer.querySelector('.comment-form');
+                            commentsContainer.insertBefore(commentDiv, commentForm);
+                            
+                            // 清空输入框
+                            input.value = '';
+                            
+                            // 更新评论数
+                            const commentBtn = document.querySelector(`.comment-btn[data-moment-id="${momentId}"]`);
+                            const commentCount = commentBtn.querySelector('.action-count');
+                            commentCount.textContent = data.comments_count;
+                        }
+                    });
+                });
+            });
+            
+            // 评论输入框回车发送
+            document.querySelectorAll('.comment-input').forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const momentId = this.dataset.momentId;
+                        document.querySelector(`.comment-submit[data-moment-id="${momentId}"]`).click();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

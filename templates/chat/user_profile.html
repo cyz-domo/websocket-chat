@@ -131,8 +131,10 @@
                     <div class="profile-detail-actions">
                         {% if is_self %}
                             <a class="btn btn-primary" href="{% url 'profile_settings' %}?next={{ request.get_full_path|urlencode }}">编辑我的设置</a>
+                            <a class="btn btn-secondary" href="{% url 'user_moments' target_profile.public_id %}">查看我的朋友圈</a>
                         {% elif is_friend %}
                             <a class="btn btn-primary" href="{% url 'direct_chat' target_profile.public_id %}?next={{ request.get_full_path|urlencode }}">发消息</a>
+                            <a class="btn btn-secondary" href="{% url 'user_moments' target_profile.public_id %}">查看朋友圈</a>
                         {% elif incoming_request %}
                             <a class="btn btn-primary" href="{% url 'inbox' %}">去处理好友申请</a>
                         {% elif outgoing_request %}

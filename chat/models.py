@@ -601,3 +601,111 @@ class SiteConfiguration(models.Model):
     @property
     def chat_attachment_max_bytes(self):
         return max(1, int(self.chat_attachment_max_mb or 50)) * 1024 * 1024
+
+
+class Moment(models.Model):
+    """朋友圈动态"""
+    VISIBILITY_PUBLIC = 'public'
+    VISIBILITY_FRIENDS = 'friends'
+    VISIBILITY_PRIVATE = 'private'
+    VISIBILITY_CHOICES = [
+        (VISIBILITY_PUBLIC, '公开'),
+        (VISIBILITY_FRIENDS, '仅好友可见'),
+        (VISIBILITY_PRIVATE, '仅自己可见'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='moments')
+    content = models.TextField(blank=True, default='', verbose_name='内容')
+    visibility = models.CharField(
+        max_length=20,
+        choices=VISIBILITY_CHOICES,
+        default=VISIBILITY_FRIENDS,
+        verbose_name='可见范围',
+    )
+    location = models.CharField(max_length=120, blank=True, default='', verbose_name='位置')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='发布时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '朋友圈动态'
+        verbose_name_plural = '朋友圈动态'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username}: {self.content[:50]}"
+
+
+class MomentImage(models.Model):
+    """朋友圈动态图片"""
+    moment = models.ForeignKey(Moment, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='moments/%Y/%m/', verbose_name='图片')
+    thumbnail = models.ImageField(upload_to='moments/%Y/%m/thumbs/', blank=True, null=True, verbose_name='缩略图')
+    order = models.PositiveIntegerField(default=0, verbose_name='排序')
+
+    class Meta:
+        verbose_name = '动态图片'
+        verbose_name_plural = '动态图片'
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.moment.user.username}'s moment image"
+
+    def delete_image_files(self):
+        if self.thumbnail:
+            self.thumbnail.delete(save=False)
+        if self.image:
+            self.image.delete(save=False)
+
+
+class MomentVideo(models.Model):
+    """朋友圈动态视频"""
+    moment = models.ForeignKey(Moment, on_delete=models.CASCADE, related_name='videos')
+    video = models.FileField(upload_to='moments/videos/%Y/%m/', verbose_name='视频')
+    thumbnail = models.ImageField(upload_to='moments/videos/%Y/%m/thumbs/', blank=True, null=True, verbose_name='缩略图')
+    duration = models.PositiveIntegerField(default=0, verbose_name='视频时长(秒)')
+
+    class Meta:
+        verbose_name = '动态视频'
+        verbose_name_plural = '动态视频'
+
+    def __str__(self):
+        return f"{self.moment.user.username}'s moment video"
+
+    def delete_video_files(self):
+        if self.thumbnail:
+            self.thumbnail.delete(save=False)
+        if self.video:
+            self.video.delete(save=False)
+
+
+class MomentLike(models.Model):
+    """朋友圈动态点赞"""
+    moment = models.ForeignKey(Moment, on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='moment_likes')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='点赞时间')
+
+    class Meta:
+        verbose_name = '动态点赞'
+        verbose_name_plural = '动态点赞'
+        constraints = [
+            models.UniqueConstraint(fields=['moment', 'user'], name='unique_moment_like'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} likes {self.moment.id}"
+
+
+class MomentComment(models.Model):
+    """朋友圈动态评论"""
+    moment = models.ForeignKey(Moment, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='moment_comments')
+    content = models.TextField(verbose_name='评论内容')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='评论时间')
+
+    class Meta:
+        verbose_name = '动态评论'
+        verbose_name_plural = '动态评论'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.user.username}: {self.content[:50]}"

@@ -76,6 +76,10 @@
             <strong>{{ user.chat_profile.get_display_name }}</strong>
             <span>{% if user.is_superuser %}管理员账号{% else %}聊天账号{% endif %}</span>
         </div>
+        <a href="{% url 'profile_settings' %}" class="quick-action-menu-item">
+            <strong>个人设置</strong>
+            <span>修改个人信息和账户设置</span>
+        </a>
         {% if user.is_superuser %}
             <a href="{% url 'admin_dashboard' %}" class="quick-action-menu-item">
                 <strong>管理后台</strong>
@@ -302,9 +306,9 @@
 
         <section class="content-card panel-card panel-switch" data-panel="friends" hidden>
             <div class="content-hero">
-                <span class="section-label">好友工作台</span>
-                <h1>好友列表只负责找到人</h1>
-                <p>私聊未读已经挪回消息中心；这里现在只保留联系人名单，点名字直接进入聊天。</p>
+                <!-- <span class="section-label">好友工作台</span> -->
+                <h1>好友列表～</h1>
+                <p>显示联系人名单，点名字直接进入聊天。</p>
 
                 <div class="hero-grid">
                     <div class="hero-card">

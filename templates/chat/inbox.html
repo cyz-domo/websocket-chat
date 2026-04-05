@@ -11,27 +11,75 @@
 <body class="lobby-page mobile-compact-shell">
     <header class="topbar panel-card">
         <div class="topbar-group">
-            <a href="{% url 'chat_index' %}" class="btn btn-secondary back-link">
+            <div class="brand-mark">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                <span class="back-link-label">返回大厅</span>
-            </a>
+            </div>
             <div class="brand-title">
                 <strong>申请与通知</strong>
             </div>
         </div>
-        <div class="topbar-group">
+        <div class="topbar-group topbar-actions">
             <span class="pill pill-owner">通知 {{ pending_friend_requests_count|add:pending_room_invites_count|add:pending_room_join_requests_count }}</span>
-            <a href="{% url 'profile_settings' %}?next={{ request.get_full_path|urlencode }}" class="settings-trigger settings-link" aria-label="个人设置">
+            <button class="settings-trigger" type="button" id="quick-action-trigger" aria-label="快速新建">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+            </button>
+            <a href="{% url 'inbox' %}" class="settings-trigger settings-link inbox-trigger" aria-label="申请与通知">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M4 6h16v12H4z"/>
+                    <path d="M4 10l6.5 5L17 10"/>
+                </svg>
+                {% if inbox_badge_count %}
+                    <span class="notification-badge">{{ inbox_badge_count }}</span>
+                {% endif %}
+            </a>
+            <a href="{% url 'profile_settings' %}?next={{ request.get_full_path|urlencode }}" class="settings-trigger settings-link" id="account-menu-trigger" aria-label="个人设置">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M12 3l1.6 2.76 3.12.68-.9 3.07 2.18 2.32-2.18 2.32.9 3.07-3.12.68L12 21l-1.6-2.76-3.12-.68.9-3.07L6 12.17l2.18-2.32-.9-3.07 3.12-.68L12 3z"/>
                     <circle cx="12" cy="12" r="3.2"/>
                 </svg>
             </a>
-            <a href="{% url 'logout' %}" class="btn btn-secondary">退出登录</a>
         </div>
     </header>
+
+    <div class="quick-action-menu panel-card" id="quick-action-menu" hidden>
+        <a href="{% url 'create_room' %}" class="quick-action-menu-item">
+            <strong>创建房间</strong>
+            <span>跳到独立页面完善群聊信息</span>
+        </a>
+        <a href="{% url 'discover_rooms' %}" class="quick-action-menu-item">
+            <strong>搜索群聊</strong>
+            <span>通过群名或群 ID 查找并申请加入</span>
+        </a>
+        <a href="{% url 'add_friend' %}" class="quick-action-menu-item">
+            <strong>添加好友</strong>
+            <span>跳到独立页面输入好友 ID</span>
+        </a>
+    </div>
+
+    <div class="quick-action-menu account-menu panel-card" id="account-menu" hidden>
+        <div class="account-menu-summary">
+            <strong>{{ user.chat_profile.get_display_name }}</strong>
+            <span>{% if user.is_superuser %}管理员账号{% else %}聊天账号{% endif %}</span>
+        </div>
+        <a href="{% url 'profile_settings' %}" class="quick-action-menu-item">
+            <strong>个人设置</strong>
+            <span>修改个人信息和账户设置</span>
+        </a>
+        {% if user.is_superuser %}
+            <a href="{% url 'admin_dashboard' %}" class="quick-action-menu-item">
+                <strong>管理后台</strong>
+                <span>进入站点管理与运营设置</span>
+            </a>
+        {% endif %}
+        <a href="{% url 'logout' %}" class="quick-action-menu-item danger">
+            <strong>退出登录</strong>
+            <span>退出当前网页会话</span>
+        </a>
+    </div>
 
     {% if messages %}
         <div class="toast-container">
@@ -43,6 +91,38 @@
 
     <main class="social-layout">
         {% include 'chat/_module_rail.html' with active_section='lobby' include_lobby_entry=True %}
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // 快速操作菜单
+                const quickActionTrigger = document.getElementById('quick-action-trigger');
+                const quickActionMenu = document.getElementById('quick-action-menu');
+                
+                quickActionTrigger.addEventListener('click', function() {
+                    quickActionMenu.hidden = !quickActionMenu.hidden;
+                    accountMenu.hidden = true;
+                });
+                
+                // 账户菜单
+                const accountMenuTrigger = document.getElementById('account-menu-trigger');
+                const accountMenu = document.getElementById('account-menu');
+                
+                accountMenuTrigger.addEventListener('click', function() {
+                    accountMenu.hidden = !accountMenu.hidden;
+                    quickActionMenu.hidden = true;
+                });
+                
+                // 点击其他地方关闭菜单
+                document.addEventListener('click', function(e) {
+                    if (!quickActionTrigger.contains(e.target) && !quickActionMenu.contains(e.target)) {
+                        quickActionMenu.hidden = true;
+                    }
+                    if (!accountMenuTrigger.contains(e.target) && !accountMenu.contains(e.target)) {
+                        accountMenu.hidden = true;
+                    }
+                });
+            });
+        </script>
 
         <section class="content-card panel-card content-card-feed">
             <div class="settings-section compact-section">

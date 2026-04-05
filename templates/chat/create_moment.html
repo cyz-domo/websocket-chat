@@ -1,0 +1,216 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发布动态 - {{ site_title }}</title>
+    {% if site_favicon_url %}<link rel="icon" href="{{ site_favicon_url }}">{% endif %}
+    <link rel="stylesheet" href="{% static 'chat-ui.css' %}">
+</head>
+<body class="lobby-page app-hub-page">
+    <header class="topbar panel-card">
+        <div class="topbar-group">
+            <a href="{% url 'moments' %}" class="btn btn-secondary back-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                返回朋友圈
+            </a>
+            <div class="brand-title">
+                <strong>发布动态</strong>
+                <span>分享你的生活瞬间</span>
+            </div>
+        </div>
+        <div class="topbar-group">
+            <a href="{% url 'profile_settings' %}?next={{ request.get_full_path|urlencode }}" class="settings-trigger settings-link" aria-label="个人设置">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 3l1.6 2.76 3.12.68-.9 3.07 2.18 2.32-2.18 2.32.9 3.07-3.12.68L12 21l-1.6-2.76-3.12-.68.9-3.07L6 12.17l2.18-2.32-.9-3.07 3.12-.68L12 3z"/>
+                    <circle cx="12" cy="12" r="3.2"/>
+                </svg>
+            </a>
+        </div>
+    </header>
+
+    <main class="social-layout">
+        {% include 'chat/_module_rail.html' with active_section='moments' include_lobby_entry=True use_buttons=False %}
+
+        <section class="content-card panel-card">
+            <div class="content-hero">
+                <h1>发布动态</h1>
+                <p>分享你的生活，让好友们看到你的精彩瞬间</p>
+            </div>
+
+            <div class="create-moment-container">
+                <form method="POST" enctype="multipart/form-data" class="create-moment-form">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="content">内容</label>
+                        <textarea id="content" name="content" rows="5" placeholder="分享你的想法..."></textarea>
+                    </div>
+                    
+                    <!-- 文件预览区域 -->
+                    <div class="form-group">
+                        <div class="file-preview-container" id="file-preview-container">
+                            <div class="file-preview-list" id="file-preview-list">
+                                <!-- 预览内容将通过JavaScript动态添加 -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 统一上传入口 -->
+                    <div class="form-group">
+                        <label>添加图片或视频</label>
+                        <div class="upload-area">
+                            <input type="file" id="file-upload" name="files" multiple accept="image/*,video/*" style="display: none;">
+                            <button type="button" class="btn btn-secondary upload-button" onclick="document.getElementById('file-upload').click()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                选择文件
+                            </button>
+                            <p class="form-help">点击按钮选择图片或视频，最多可上传9个文件</p>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="location">位置</label>
+                        <input type="text" id="location" name="location" placeholder="添加位置">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>可见范围</label>
+                        <div class="visibility-options">
+                            <label class="visibility-option">
+                                <input type="radio" name="visibility" value="public" {% if form.visibility.value == 'public' %}checked{% endif %}>
+                                <span class="visibility-icon public">🌍</span>
+                                <span>公开</span>
+                            </label>
+                            <label class="visibility-option">
+                                <input type="radio" name="visibility" value="friends" {% if form.visibility.value == 'friends' or not form.visibility.value %}checked{% endif %}>
+                                <span class="visibility-icon friends">👥</span>
+                                <span>仅好友可见</span>
+                            </label>
+                            <label class="visibility-option">
+                                <input type="radio" name="visibility" value="private" {% if form.visibility.value == 'private' %}checked{% endif %}>
+                                <span class="visibility-icon private">🔒</span>
+                                <span>仅自己可见</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 隐藏的文件输入 -->
+                    <input type="file" id="images" name="images" multiple accept="image/*" style="display: none;">
+                    <input type="file" id="videos" name="videos" multiple accept="video/*" style="display: none;">
+                    
+                    <div class="form-actions">
+                        <a href="{% url 'moments' %}" class="btn btn-secondary">取消</a>
+                        <button type="submit" class="btn btn-primary publish-btn">发布</button>
+                    </div>
+                </form>
+
+                <script>
+                    // 防止重复提交
+                    document.querySelector('form').addEventListener('submit', function(e) {
+                        const publishBtn = document.querySelector('.publish-btn');
+                        publishBtn.disabled = true;
+                        publishBtn.textContent = '发布中...';
+                    });
+                </script>
+            </div>
+        </section>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const fileUpload = document.getElementById('file-upload');
+                const filePreviewList = document.getElementById('file-preview-list');
+                const imagesInput = document.getElementById('images');
+                const videosInput = document.getElementById('videos');
+                
+                let selectedFiles = [];
+                
+                fileUpload.addEventListener('change', function(e) {
+                    const files = e.target.files;
+                    
+                    if (files.length > 0) {
+                        // 检查文件数量
+                        if (selectedFiles.length + files.length > 9) {
+                            alert('最多只能上传9个文件');
+                            return;
+                        }
+                        
+                        for (let i = 0; i < files.length; i++) {
+                            const file = files[i];
+                            selectedFiles.push(file);
+                            
+                            // 创建预览元素
+                            const previewItem = document.createElement('div');
+                            previewItem.className = 'file-preview-item';
+                            previewItem.dataset.index = selectedFiles.length - 1;
+                            
+                            if (file.type.startsWith('image/')) {
+                                // 图片预览
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    previewItem.innerHTML = `
+                                        <img src="${e.target.result}" alt="图片预览">
+                                        <button type="button" class="remove-file" onclick="removeFile(${selectedFiles.length - 1})">×</button>
+                                    `;
+                                };
+                                reader.readAsDataURL(file);
+                            } else if (file.type.startsWith('video/')) {
+                                // 视频预览
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    previewItem.innerHTML = `
+                                        <video src="${e.target.result}" controls></video>
+                                        <button type="button" class="remove-file" onclick="removeFile(${selectedFiles.length - 1})">×</button>
+                                    `;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                            
+                            filePreviewList.appendChild(previewItem);
+                        }
+                    }
+                });
+                
+                // 移除文件
+                window.removeFile = function(index) {
+                    selectedFiles.splice(index, 1);
+                    const previewItems = document.querySelectorAll('.file-preview-item');
+                    previewItems[index].remove();
+                    
+                    // 更新剩余预览项的索引
+                    previewItems.forEach((item, i) => {
+                        if (i > index) {
+                            item.dataset.index = i - 1;
+                            item.querySelector('.remove-file').onclick = function() {
+                                removeFile(i - 1);
+                            };
+                        }
+                    });
+                };
+                
+                // 提交表单时，将选中的文件分配到对应的输入字段
+                document.querySelector('form').addEventListener('submit', function(e) {
+                    const imageFiles = selectedFiles.filter(file => file.type.startsWith('image/'));
+                    const videoFiles = selectedFiles.filter(file => file.type.startsWith('video/'));
+                    
+                    // 创建新的FileList对象
+                    const imageFileList = new DataTransfer();
+                    imageFiles.forEach(file => imageFileList.items.add(file));
+                    imagesInput.files = imageFileList.files;
+                    
+                    const videoFileList = new DataTransfer();
+                    videoFiles.forEach(file => videoFileList.items.add(file));
+                    videosInput.files = videoFileList.files;
+                });
+            });
+        </script>
+    </main>
+</body>
+</html>
