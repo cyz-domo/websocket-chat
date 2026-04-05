@@ -107,6 +107,37 @@ DB_PORT=5432 \
 - 检查目标 PostgreSQL 是否为空
 - 将数据导入 PostgreSQL
 
+关于新字段 / 新数据结构：
+
+- 当前迁移脚本走的是 Django 的 `dumpdata`、`migrate`、`loaddata` 流程，不是手写字段映射
+- 只要新字段已经写入 Django model，并且对应 migration 已经提交，迁移时会自动一起导出 / 建表 / 导入
+- 这意味着项目新增字段后，一般不需要单独修改 `scripts/migrate_sqlite_to_postgres.py`
+- 真正需要注意的是：迁移前请先确保源码、`chat/migrations/` 和数据库结构保持一致
+
+推荐顺序：
+
+```bash
+./.venv/bin/python manage.py migrate
+./.venv/bin/python scripts/migrate_sqlite_to_postgres.py \
+  --source-sqlite db.sqlite3 \
+  --db-name websocket_chat \
+  --db-user postgres \
+  --db-password your_password \
+  --db-host 127.0.0.1 \
+  --db-port 5432
+```
+
+如果你是把项目迁到另一台机器，除了数据库，还建议一起备份下面两部分：
+
+- 项目代码
+- `media/` 媒体目录
+
+原因：
+
+- 代码里包含最新 model、template、consumer、migration 和前端逻辑
+- 数据库迁移只负责表结构和表数据，不会自动补上你本地还没同步过去的代码变更
+- `media/` 里保存头像、聊天图片、视频、文件、表情等实际文件，数据库里只存路径
+
 如果目标 PostgreSQL 已经有旧数据，并且你确认可以清空它：
 
 ```bash

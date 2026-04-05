@@ -300,6 +300,16 @@
                         <strong>拍照片</strong>
                         <span>直接打开相机</span>
                     </button>
+                    <button class="chat-attachment-action" type="button" data-video-trigger="direct">
+                        <span class="chat-attachment-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                                <rect x="4" y="6" width="11" height="12" rx="3"></rect>
+                                <path d="M15 10l4-2.5a1 1 0 0 1 1.5.86v7.28a1 1 0 0 1-1.5.86L15 14"></path>
+                            </svg>
+                        </span>
+                        <strong>拍视频</strong>
+                        <span>直接打开录像</span>
+                    </button>
                     <button class="chat-attachment-action" type="button" data-target="direct-file-input">
                         <span class="chat-attachment-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
@@ -1247,9 +1257,59 @@
             return !!(window.isSecureContext && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
         }
 
-        function directPreferNativeCapture() {
+        function directIsMobileCaptureDevice() {
             return /Android|iPhone|iPad|iPod|HarmonyOS|Mobile/i.test(navigator.userAgent || '')
                 || window.matchMedia('(pointer: coarse)').matches;
+        }
+
+        function directHasReliableNativeCapture() {
+            const ua = navigator.userAgent || '';
+            if (!directIsMobileCaptureDevice()) return false;
+            if (/MicroMessenger|QQ\/|MQQBrowser|QQBrowser|Weibo|AlipayClient|DingTalk|baiduboxapp|HuaweiBrowser|HeyTapBrowser|MiuiBrowser/i.test(ua)) {
+                return false;
+            }
+            return /(Chrome|CriOS|EdgA|EdgiOS|SamsungBrowser|Firefox|FxiOS|Version\/)/i.test(ua);
+        }
+
+        function directPreferNativeCapture() {
+            return directHasReliableNativeCapture()
+                || (directIsMobileCaptureDevice() && !directCameraSupported());
+        }
+
+        function triggerDirectNativeCapture(input) {
+            if (!input) return;
+            input.value = '';
+            const previousHidden = input.hidden;
+            const previousStyle = input.getAttribute('style') || '';
+            input.hidden = false;
+            input.style.position = 'fixed';
+            input.style.left = '-9999px';
+            input.style.top = '0';
+            input.style.opacity = '0';
+            input.style.pointerEvents = 'none';
+            input.style.display = 'block';
+            try {
+                if (typeof input.showPicker === 'function') {
+                    input.showPicker();
+                } else {
+                    input.click();
+                }
+            } catch (error) {
+                console.warn('调用系统拍照失败，回退到 click:', error);
+                try {
+                    input.click();
+                } catch (clickError) {
+                    console.warn('系统拍照输入打开失败:', clickError);
+                }
+            }
+            window.setTimeout(() => {
+                input.hidden = previousHidden;
+                if (previousStyle) {
+                    input.setAttribute('style', previousStyle);
+                } else {
+                    input.removeAttribute('style');
+                }
+            }, 1200);
         }
 
         function setDirectCameraTip(message) {
@@ -1306,7 +1366,7 @@
         async function openDirectCameraModal() {
             if (directPreferNativeCapture()) {
                 toggleDirectAttachmentPanel(false);
-                directCameraInput?.click();
+                triggerDirectNativeCapture(directCameraInput);
                 return;
             }
             if (directCameraModal) {
@@ -1322,6 +1382,15 @@
                 await ensureDirectCameraStream(true);
             } catch (error) {
                 console.warn('打开摄像头失败:', error);
+                if (directIsMobileCaptureDevice() && directCameraInput) {
+                    if (directCameraModal) {
+                        directCameraModal.hidden = true;
+                    }
+                    setDirectCameraTip('浏览器相机不可用，改为调用系统相机。');
+                    showDirectToast('浏览器相机不可用，正在尝试系统相机');
+                    triggerDirectNativeCapture(directCameraInput);
+                    return;
+                }
                 setDirectCameraTip('无法直接打开摄像头，请检查浏览器权限设置。');
                 showDirectToast('无法直接打开摄像头，请检查浏览器权限', true);
             }
@@ -1330,7 +1399,7 @@
         async function captureDirectCameraPhoto() {
             if (directPreferNativeCapture()) {
                 closeDirectCameraModal();
-                directCameraInput?.click();
+                triggerDirectNativeCapture(directCameraInput);
                 return;
             }
             if (!directCameraVideo || !directCameraCanvas) return;
@@ -1362,7 +1431,7 @@
         async function toggleDirectVideoRecording() {
             if (directPreferNativeCapture()) {
                 toggleDirectAttachmentPanel(false);
-                directVideoCaptureInput?.click();
+                triggerDirectNativeCapture(directVideoCaptureInput);
                 return;
             }
             if (!window.MediaRecorder) {
@@ -1797,7 +1866,7 @@
                 if (action.dataset.cameraTrigger === 'direct') {
                     if (directPreferNativeCapture()) {
                         toggleDirectAttachmentPanel(false);
-                        directCameraInput?.click();
+                        triggerDirectNativeCapture(directCameraInput);
                         return;
                     }
                     openDirectCameraModal();
@@ -1806,7 +1875,7 @@
                 if (action.dataset.videoTrigger === 'direct') {
                     if (directPreferNativeCapture()) {
                         toggleDirectAttachmentPanel(false);
-                        directVideoCaptureInput?.click();
+                        triggerDirectNativeCapture(directVideoCaptureInput);
                         return;
                     }
                     toggleDirectVideoRecording();

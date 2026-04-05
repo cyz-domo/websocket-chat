@@ -432,6 +432,16 @@
                         <strong>拍照片</strong>
                         <span>直接打开相机</span>
                     </button>
+                    <button class="chat-attachment-action" type="button" data-video-trigger="room">
+                        <span class="chat-attachment-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                                <rect x="4" y="6" width="11" height="12" rx="3"></rect>
+                                <path d="M15 10l4-2.5a1 1 0 0 1 1.5.86v7.28a1 1 0 0 1-1.5.86L15 14"></path>
+                            </svg>
+                        </span>
+                        <strong>拍视频</strong>
+                        <span>直接打开录像</span>
+                    </button>
                     <button class="chat-attachment-action" type="button" data-target="room-file-input">
                         <span class="chat-attachment-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
@@ -1068,9 +1078,59 @@
             return !!(window.isSecureContext && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
         }
 
-        function roomPreferNativeCapture() {
+        function roomIsMobileCaptureDevice() {
             return /Android|iPhone|iPad|iPod|HarmonyOS|Mobile/i.test(navigator.userAgent || '')
                 || window.matchMedia('(pointer: coarse)').matches;
+        }
+
+        function roomHasReliableNativeCapture() {
+            const ua = navigator.userAgent || '';
+            if (!roomIsMobileCaptureDevice()) return false;
+            if (/MicroMessenger|QQ\/|MQQBrowser|QQBrowser|Weibo|AlipayClient|DingTalk|baiduboxapp|HuaweiBrowser|HeyTapBrowser|MiuiBrowser/i.test(ua)) {
+                return false;
+            }
+            return /(Chrome|CriOS|EdgA|EdgiOS|SamsungBrowser|Firefox|FxiOS|Version\/)/i.test(ua);
+        }
+
+        function roomPreferNativeCapture() {
+            return roomHasReliableNativeCapture()
+                || (roomIsMobileCaptureDevice() && !roomCameraSupported());
+        }
+
+        function triggerRoomNativeCapture(input) {
+            if (!input) return;
+            input.value = '';
+            const previousHidden = input.hidden;
+            const previousStyle = input.getAttribute('style') || '';
+            input.hidden = false;
+            input.style.position = 'fixed';
+            input.style.left = '-9999px';
+            input.style.top = '0';
+            input.style.opacity = '0';
+            input.style.pointerEvents = 'none';
+            input.style.display = 'block';
+            try {
+                if (typeof input.showPicker === 'function') {
+                    input.showPicker();
+                } else {
+                    input.click();
+                }
+            } catch (error) {
+                console.warn('调用系统拍照失败，回退到 click:', error);
+                try {
+                    input.click();
+                } catch (clickError) {
+                    console.warn('系统拍照输入打开失败:', clickError);
+                }
+            }
+            window.setTimeout(() => {
+                input.hidden = previousHidden;
+                if (previousStyle) {
+                    input.setAttribute('style', previousStyle);
+                } else {
+                    input.removeAttribute('style');
+                }
+            }, 1200);
         }
 
         function setRoomCameraTip(message) {
@@ -1127,7 +1187,7 @@
         async function openRoomCameraModal() {
             if (roomPreferNativeCapture()) {
                 toggleRoomAttachmentPanel(false);
-                roomCameraInput?.click();
+                triggerRoomNativeCapture(roomCameraInput);
                 return;
             }
             if (roomCameraModal) {
@@ -1143,6 +1203,15 @@
                 await ensureRoomCameraStream(true);
             } catch (error) {
                 console.warn('打开摄像头失败:', error);
+                if (roomIsMobileCaptureDevice() && roomCameraInput) {
+                    if (roomCameraModal) {
+                        roomCameraModal.hidden = true;
+                    }
+                    setRoomCameraTip('浏览器相机不可用，改为调用系统相机。');
+                    showCopyToast('浏览器相机不可用，正在尝试系统相机');
+                    triggerRoomNativeCapture(roomCameraInput);
+                    return;
+                }
                 setRoomCameraTip('无法直接打开摄像头，请检查浏览器权限设置。');
                 showCopyToast('无法直接打开摄像头，请检查浏览器权限', true);
             }
@@ -1151,7 +1220,7 @@
         async function captureRoomCameraPhoto() {
             if (roomPreferNativeCapture()) {
                 closeRoomCameraModal();
-                roomCameraInput?.click();
+                triggerRoomNativeCapture(roomCameraInput);
                 return;
             }
             if (!roomCameraVideo || !roomCameraCanvas) return;
@@ -1183,7 +1252,7 @@
         async function toggleRoomVideoRecording() {
             if (roomPreferNativeCapture()) {
                 toggleRoomAttachmentPanel(false);
-                roomVideoCaptureInput?.click();
+                triggerRoomNativeCapture(roomVideoCaptureInput);
                 return;
             }
             if (!window.MediaRecorder) {
@@ -2432,7 +2501,7 @@
                 if (action.dataset.cameraTrigger === 'room') {
                     if (roomPreferNativeCapture()) {
                         toggleRoomAttachmentPanel(false);
-                        roomCameraInput?.click();
+                        triggerRoomNativeCapture(roomCameraInput);
                         return;
                     }
                     openRoomCameraModal();
@@ -2441,7 +2510,7 @@
                 if (action.dataset.videoTrigger === 'room') {
                     if (roomPreferNativeCapture()) {
                         toggleRoomAttachmentPanel(false);
-                        roomVideoCaptureInput?.click();
+                        triggerRoomNativeCapture(roomVideoCaptureInput);
                         return;
                     }
                     toggleRoomVideoRecording();
