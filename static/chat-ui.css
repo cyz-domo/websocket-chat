@@ -7375,6 +7375,75 @@ code {
     }
 }
 
+@media (max-width: 500px) {
+    .moments-page .topbar,
+    .notifications-page .topbar,
+    .create-moment-page .topbar,
+    .inbox-page .topbar,
+    .profile-page .topbar {
+        padding: 10px 11px;
+        gap: 8px;
+    }
+
+    .moments-page .topbar .topbar-group:first-child,
+    .notifications-page .topbar .topbar-group:first-child,
+    .create-moment-page .topbar .topbar-group:first-child,
+    .inbox-page .topbar .topbar-group:first-child,
+    .profile-page .topbar .topbar-group:first-child {
+        gap: 7px;
+    }
+
+    .moments-page .topbar .topbar-group:last-child,
+    .notifications-page .topbar .topbar-group:last-child,
+    .create-moment-page .topbar .topbar-group:last-child,
+    .inbox-page .topbar .topbar-actions,
+    .profile-page .topbar .topbar-group:last-child {
+        gap: 6px;
+    }
+
+    .moments-page .topbar .brand-title strong,
+    .notifications-page .topbar .brand-title strong,
+    .create-moment-page .topbar .brand-title strong,
+    .inbox-page .topbar .brand-title strong,
+    .profile-page .topbar .brand-title strong {
+        font-size: 0.96rem;
+    }
+
+    .moments-page .topbar .btn:not(.back-link),
+    .notifications-page .topbar .btn:not(.back-link) {
+        width: 38px;
+        min-width: 38px;
+        min-height: 38px;
+        border-radius: 12px;
+    }
+
+    .create-moment-page .topbar .settings-trigger,
+    .inbox-page .topbar .settings-trigger,
+    .profile-page .logout-link,
+    .profile-page .topbar .settings-trigger {
+        width: 38px;
+        min-width: 38px;
+        height: 38px;
+        border-radius: 12px;
+    }
+
+    .moments-page .topbar .btn svg,
+    .notifications-page .topbar .btn svg,
+    .create-moment-page .topbar .settings-trigger svg,
+    .inbox-page .topbar .settings-trigger svg,
+    .profile-page .logout-link svg,
+    .profile-page .topbar .settings-trigger svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .moments-page .topbar .notification-badge,
+    .inbox-page .topbar .notification-badge {
+        transform: scale(0.92);
+        transform-origin: top right;
+    }
+}
+
 /* 朋友圈样式 */
 .moments-list {
     margin-top: 20px;
