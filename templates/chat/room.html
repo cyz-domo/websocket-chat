@@ -548,6 +548,14 @@
         <button class="message-context-action" type="button" data-action="favorite-emoji" hidden>收藏表情</button>
     </div>
 
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-dialog" role="alertdialog" aria-modal="true">
+            <strong id="modal-title"></strong>
+            <p id="modal-message"></p>
+            <div class="modal-actions" id="modal-actions"></div>
+        </div>
+    </div>
+
     <script>
         const roomName = {{ room_name_json }};
         const isOwner = {{ is_owner|yesno:"true,false" }};
@@ -642,6 +650,95 @@
         const PRECISE_LOCATION_SYNC_TTL = 10 * 60 * 1000;
         let skipNextSocketHistoryPayload = false;
 
+        function showModal(title, message, buttons) {
+            const overlay = document.getElementById('modal-overlay');
+            const titleEl = document.getElementById('modal-title');
+            const messageEl = document.getElementById('modal-message');
+            const actionsEl = document.getElementById('modal-actions');
+            if (!overlay || !titleEl || !messageEl || !actionsEl) return;
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            actionsEl.innerHTML = '';
+            const defaultButtons = buttons && buttons.length ? buttons : [{ text: '确定', primary: true, value: true }];
+            let result = defaultButtons.find((b) => typeof b.value !== 'undefined') ? defaultButtons[0].value : true;
+            defaultButtons.forEach((btn) => {
+                const el = document.createElement('button');
+                el.className = 'btn' + (btn.primary ? ' btn-primary' : ' btn-secondary');
+                el.textContent = btn.text;
+                el.addEventListener('click', () => {
+                    result = typeof btn.value !== 'undefined' ? btn.value : true;
+                    overlay.classList.remove('open');
+                    if (btn.callback) btn.callback(result);
+                });
+                actionsEl.appendChild(el);
+            });
+            overlay.classList.add('open');
+            return new Promise((resolve) => {
+                const handler = (e) => {
+                    if (e.target === overlay) {
+                        overlay.classList.remove('open');
+                        overlay.removeEventListener('click', handler);
+                        resolve(false);
+                    }
+                };
+                overlay.addEventListener('click', handler);
+                const closeHandler = () => {
+                    overlay.classList.remove('open');
+                    resolve(false);
+                };
+                const buttons_ = actionsEl.querySelectorAll('.btn');
+                buttons_.forEach((b) => {
+                    const orig = b.click;
+                    b.addEventListener('click', () => {
+                        overlay.removeEventListener('click', handler);
+                    });
+                });
+            });
+        }
+
+        (function() {
+            const origAlert = window.alert;
+            const origConfirm = window.confirm;
+            window.alert = function(message) {
+                showModal('提示', String(message), [{ text: '确定', primary: true }]);
+            };
+            window.confirm = function(message) {
+                let confirmed = false;
+                const overlay = document.getElementById('modal-overlay');
+                const titleEl = document.getElementById('modal-title');
+                const messageEl = document.getElementById('modal-message');
+                const actionsEl = document.getElementById('modal-actions');
+                if (!overlay || !titleEl || !messageEl || !actionsEl) return origConfirm(message);
+                titleEl.textContent = '确认操作';
+                messageEl.textContent = String(message);
+                actionsEl.innerHTML = '';
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'btn btn-secondary';
+                cancelBtn.textContent = '取消';
+                const okBtn = document.createElement('button');
+                okBtn.className = 'btn btn-primary';
+                okBtn.textContent = '确定';
+                actionsEl.append(cancelBtn, okBtn);
+                overlay.classList.add('open');
+                return new Promise((resolve) => {
+                    cancelBtn.addEventListener('click', () => {
+                        overlay.classList.remove('open');
+                        resolve(false);
+                    });
+                    okBtn.addEventListener('click', () => {
+                        overlay.classList.remove('open');
+                        resolve(true);
+                    });
+                    overlay.addEventListener('click', (e) => {
+                        if (e.target === overlay) {
+                            overlay.classList.remove('open');
+                            resolve(false);
+                        }
+                    });
+                });
+            };
+        })();
+
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = protocol + '//' + window.location.host + '/ws/chat/' + roomName + '/';
         async function copyTextToClipboard(text) {
@@ -714,13 +811,6 @@
         function shouldAllowNativeBrowserMenu(target) {
             return !!target.closest('input, textarea, select, option, [contenteditable="true"], .message-context-menu, .chat-lightbox');
         }
-
-        document.addEventListener('contextmenu', function(event) {
-            if (shouldAllowNativeBrowserMenu(event.target)) {
-                return;
-            }
-            event.preventDefault();
-        });
 
         function bindCopyTargets() {
             document.addEventListener('click', async (event) => {
@@ -993,7 +1083,7 @@
 
             if (data.type === 'delete_room') {
                 notifyParentThreadRemoved();
-                alert('房间已被房主删除');
+                showModal('房间已删除', '房间已被房主删除', [{ text: '确定', primary: true }]);
                 window.location.href = '/chat/';
                 return;
             }
@@ -1042,11 +1132,12 @@
         function setComposerEnabled(enabled) {
             messageInput.disabled = !enabled;
             sendBtn.disabled = !enabled;
-            if (roomAttachmentTrigger) {
-                roomAttachmentTrigger.disabled = !enabled;
-            }
-            if (roomEmojiTrigger) {
-                roomEmojiTrigger.disabled = !enabled;
+            [roomAttachmentTrigger, roomEmojiTrigger, roomFileInput, roomImageInput, roomCameraInput].forEach((el) => {
+                if (el) el.disabled = !enabled;
+            });
+            if (!enabled) {
+                toggleRoomAttachmentPanel(false);
+                toggleRoomEmojiPanel(false);
             }
         }
 
@@ -1419,7 +1510,7 @@
             formData.append('file', file);
             const pendingMessage = createRoomPendingUploadMessage(file);
             try {
-                sendBtn.disabled = true;
+                setComposerEnabled(false);
                 await new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
                     roomPendingUploads.set(pendingMessage.dataset.pendingUploadId, xhr);
@@ -1488,7 +1579,7 @@
             updateRoomConnectionIndicator(false, '未连接');
             if (!hasShownRemovedAlert) {
                 hasShownRemovedAlert = true;
-                window.alert(message || '你已被移出该群聊，不可再发送消息。');
+                showModal('已被移出', message || '你已被移出该群聊，不可再发送消息。', [{ text: '知道了', primary: true }]);
             }
         }
 
@@ -2401,22 +2492,30 @@
         }
 
         function kickUser(user) {
-            if (confirm('确定要踢出 ' + user + ' 吗？')) {
-                chatSocket.send(JSON.stringify({
-                    'type': 'kick',
-                    'user': user,
-                    'kicked_by': username
-                }));
-            }
+            showModal('确认操作', '确定要踢出 ' + user + ' 吗？', [
+                { text: '取消', primary: false, value: false },
+                { text: '踢出', primary: true, value: true, callback: (confirmed) => {
+                    if (!confirmed) return;
+                    chatSocket.send(JSON.stringify({
+                        'type': 'kick',
+                        'user': user,
+                        'kicked_by': username
+                    }));
+                }}
+            ]);
         }
 
         function deleteRoom() {
-            if (confirm('确定要删除房间 #{{ room_name }} 吗？')) {
-                chatSocket.send(JSON.stringify({
-                    'type': 'delete_room',
-                    'user': username
-                }));
-            }
+            showModal('确认操作', '确定要删除房间 #{{ room_name }} 吗？', [
+                { text: '取消', primary: false, value: false },
+                { text: '删除房间', primary: true, value: true, callback: (confirmed) => {
+                    if (!confirmed) return;
+                    chatSocket.send(JSON.stringify({
+                        'type': 'delete_room',
+                        'user': username
+                    }));
+                }}
+            ]);
         }
 
         function toggleRoomSettings(forceState) {
@@ -2430,8 +2529,7 @@
 
         function handleRoomSocketClose() {
             clearRoomHeartbeatTimers();
-            messageInput.disabled = true;
-            sendBtn.disabled = true;
+            setComposerEnabled(false);
             if (statusDot) {
                 statusDot.classList.remove('connected');
             }

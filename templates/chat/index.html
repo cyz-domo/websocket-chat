@@ -158,7 +158,7 @@
                                 <form class="thread-swipe-action" method="post" action="{{ item.delete_url }}">
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{% url 'chat_index' %}">
-                                    <button class="thread-delete-btn" type="submit" onclick="return confirm('确定从你的会话列表移除这个{% if item.type == "room" %}群聊{% else %}私聊{% endif %}吗？');">删除</button>
+                                    <button class="thread-delete-btn" type="submit" data-confirm-message="确定从你的会话列表移除这个{% if item.type == "room" %}群聊{% else %}私聊{% endif %}吗？">删除</button>
                                 </form>
                             {% endif %}
                         </div>
@@ -351,7 +351,53 @@
         </section>
     </main>
 
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-dialog" role="alertdialog" aria-modal="true">
+            <p id="modal-message"></p>
+            <div class="modal-actions" id="modal-actions"></div>
+        </div>
+    </div>
+
     <script>
+        function showModal(message, buttons) {
+            const overlay = document.getElementById('modal-overlay');
+            const messageEl = document.getElementById('modal-message');
+            const actionsEl = document.getElementById('modal-actions');
+            if (!overlay || !messageEl || !actionsEl) return;
+            messageEl.textContent = String(message);
+            actionsEl.innerHTML = '';
+            (buttons || [{ text: '确定', primary: true }]).forEach((btn) => {
+                const el = document.createElement('button');
+                el.className = 'btn ' + (btn.primary ? 'btn-primary' : 'btn-secondary');
+                el.textContent = btn.text;
+                el.addEventListener('click', () => {
+                    overlay.classList.remove('open');
+                    if (btn.callback) btn.callback(btn.value !== undefined ? btn.value : true);
+                });
+                actionsEl.appendChild(el);
+            });
+            overlay.classList.add('open');
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('open');
+                }
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-confirm-message]');
+            if (!btn || btn.tagName !== 'BUTTON') return;
+            e.preventDefault();
+            const message = btn.dataset.confirmMessage;
+            const form = btn.closest('form');
+            showModal(message, [
+                { text: '取消', primary: false, callback: () => {} },
+                { text: '确定', primary: true, callback: () => {
+                    if (form) form.submit();
+                }}
+            ]);
+        });
+
         const panelSwitchButtons = Array.from(document.querySelectorAll('[data-panel-target]'));
         const panelSwitchPanels = Array.from(document.querySelectorAll('.panel-switch'));
         const conversationSearchShell = document.getElementById('conversation-search-shell');
@@ -785,7 +831,7 @@
                 deleteButton.className = 'thread-delete-btn';
                 deleteButton.type = 'submit';
                 deleteButton.textContent = '删除';
-                deleteButton.onclick = () => window.confirm(`确定从你的会话列表移除这个${payload.type === 'room' ? '群聊' : '私聊'}吗？`);
+                deleteButton.dataset.confirmMessage = `确定从你的会话列表移除这个${payload.type === 'room' ? '群聊' : '私聊'}吗？`;
 
                 form.append(csrfInput, nextInput, deleteButton);
                 shell.appendChild(form);
